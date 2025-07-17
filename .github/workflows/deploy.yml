@@ -25,12 +25,16 @@ jobs:
 
     - name: Deploy
       run: |
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@138.197.174.176 "
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@138.197.174.176 '
+          export NVM_DIR="$HOME/.nvm"
+          source "$NVM_DIR/nvm.sh"
+          source "$NVM_DIR/bash_completion"
+    
           cd /root/finalfront
           git pull origin main
-          yarn install --frozen-lockfile
+          yarn --frozen-lockfile
           yarn build
           pm2 restart finalfront
-          # Add your restart commands here
-          echo 'Deployment completed!'
-        "
+    
+          echo "✅ Deployment completed!"
+        '

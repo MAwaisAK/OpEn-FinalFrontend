@@ -1,11 +1,12 @@
 import axios from "axios";
 
+// Axios request interceptor to add authorization header
 if (typeof window !== "undefined") {
   axios.interceptors.request.use(
     function (config) {
       try {
         const { origin } = new URL(config.url);
-        const allowedOrigins = ["https://openpreneurs.business"];
+        const allowedOrigins = [process.env.NEXT_PUBLIC_BASE_ENDPOINT];
         const token = localStorage.getItem("access-token");
 
         if (allowedOrigins.includes(origin) && token) {
@@ -21,6 +22,7 @@ if (typeof window !== "undefined") {
     }
   );
 }
+
 
 
 export const fetchAllUsers = async () => {

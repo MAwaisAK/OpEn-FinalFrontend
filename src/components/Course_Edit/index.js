@@ -10,7 +10,7 @@ import { TextEditor } from "./TextEditor";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import {
-  fetchMe
+  fetchMe, fetchCoursesArray
 } from "@/app/api";
 
 const EditCourse = () => {
@@ -48,7 +48,7 @@ const EditCourse = () => {
     title: "",
     Author: "",
     AuthorLink: "",
-    courseCategory: "Tech",
+    courseCategory: "",
     description: "",
     shortdescription: "",
     courseContent: "",
@@ -313,6 +313,24 @@ const EditCourse = () => {
       alert("Error updating course.");
     }
   };
+
+  const [tools, setTools] = useState([]);
+
+  // Fetch initial categories (tools) on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetchCoursesArray();
+        // Assuming response.data is an array of tool categories
+        setTools(response.data || []);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   if (loading2) {
     return <div className="p-4">Loading...</div>;
   }
@@ -433,13 +451,29 @@ const EditCourse = () => {
                                 name="courseCategory"
                                 value={formData.courseCategory}
                                 onChange={handleChange}
+                                required              // ← ensure they can’t submit without picking
                               >
-                                <option value="Tech">Tech</option>
-                                <option value="News">News</option>
-                                <option value="Political">Political</option>
+                                <option value="" disabled>
+                                  -- Select a Category --
+                                </option>
+                                {tools.length > 0
+                                  ? tools.map((tool, i) => {
+                                    const val = tool.category || tool;
+                                    return (
+                                      <option key={i} value={val}>
+                                        {val}
+                                      </option>
+                                    );
+                                  })
+                                  : ["Tech", "News", "Political"].map((val) => (
+                                    <option key={val} value={val}>
+                                      {val}
+                                    </option>
+                                  ))}
                               </select>
                             </div>
                           </div>
+
 
                           {/* Description */}
                           <div className="form-group row mb-4">

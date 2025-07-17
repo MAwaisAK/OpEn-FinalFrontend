@@ -209,6 +209,8 @@ const Payment = () => {
                                 <th>Type</th>
                                 <th>Info</th>
                                 <th>Amount</th>
+                                <th>Discount %</th>
+                                <th>Token</th>
                                 <th>Date</th>
                                 <th>Status</th>
                                 <th style={{ display: "none" }}>Raw Status</th>
@@ -231,7 +233,9 @@ const Payment = () => {
                                       ? p.tokens
                                       : "N/A"}
                                   </td>
-                                  <td>{p.payment || "N/A"}</td>
+                                  <td>{p.payment || 0}</td>
+                                  <td>{p.discountValue || "N/A"}</td>
+                                  <td>{p.discount || "N/A"}</td>
                                   <td>{new Date(p.createdAt).toLocaleString()}</td>
                                   <td>
                                     <select

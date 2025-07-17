@@ -260,7 +260,7 @@ console.log(discountCode);
       if (userData?.subscription === "premium") {
         finalPrice = 0;
       } else if (userData?.subscription === "basic") {
-        finalPrice = price * 0.2; // 80% off
+        finalPrice = price; // 80% off
       }
     }
     

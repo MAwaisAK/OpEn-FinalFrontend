@@ -93,14 +93,13 @@ export default function Home() {
 
 
   const statSafe = (val) => (typeof val === "number" ? val : 0);
-
+       console.log("a");
   useEffect(() => {
     async function fetchData() {
       try {
         const images = await fetchLandingImages();
         setLandingImage(images.landingImage);
         setLandingMiniImage(images.landingMiniImage);
-
         const pricingData = await fetchBasicPremiumPricing();
         setPricing(pricingData);
 

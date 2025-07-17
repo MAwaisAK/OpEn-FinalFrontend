@@ -45,7 +45,7 @@ const CreateCourse = () => {
     title: "",
     Author: "",
     AuthorLink: "",
-    courseCategory: "Tech",
+    courseCategory: "",
     description: "",
     shortdescription: "",
     courseContent: "",
@@ -386,23 +386,28 @@ const CreateCourse = () => {
                             <div className="col-sm-12 col-md-7">
                               <select
                                 className="form-control selectric"
-                                name="toolCategory"
-                                value={formData.toolCategory}
+                                name="courseCategory"
+                                value={formData.courseCategory}
                                 onChange={handleChange}
+                                required              // ← ensure they can’t submit without picking
                               >
-                                {tools && tools.length > 0 ? (
-                                  tools.map((tool, index) => (
-                                    <option key={index} value={tool.category || tool}>
-                                      {tool.category || tool}
+                                <option value="" disabled>
+                                  -- Select a Category --
+                                </option>
+                                {tools.length > 0
+                                  ? tools.map((tool, i) => {
+                                    const val = tool.category || tool;
+                                    return (
+                                      <option key={i} value={val}>
+                                        {val}
+                                      </option>
+                                    );
+                                  })
+                                  : ["Tech", "News", "Political"].map((val) => (
+                                    <option key={val} value={val}>
+                                      {val}
                                     </option>
-                                  ))
-                                ) : (
-                                  <>
-                                    <option value="Tech">Tech</option>
-                                    <option value="News">News</option>
-                                    <option value="Political">Political</option>
-                                  </>
-                                )}
+                                  ))}
                               </select>
                             </div>
                           </div>

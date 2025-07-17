@@ -10,7 +10,7 @@ import { TextEditor } from "./TextEditor";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import {
-  fetchMe
+  fetchMe, fetchToolsArray
 } from "@/app/api"; // Import new API functions
 
 const EditTool = () => {
@@ -62,6 +62,23 @@ const EditTool = () => {
   const [priceHeading, setPriceHeading] = useState([""]);
   const [existingThumbnail, setExistingThumbnail] = useState(null);
   const [priceDetail, setPriceDetail] = useState([""]);
+
+  const [tools, setTools] = useState([]);
+
+  // Fetch initial categories (tools) on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetchToolsArray();
+        // Assuming response.data is an array of tool categories
+        setTools(response.data || []);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Load existing tool data
   useEffect(() => {
@@ -269,7 +286,7 @@ const EditTool = () => {
                         </div>
                       </div>
 
-                      {/* Category */}
+                      {/* Type */}
                       <div className="form-group row mb-4">
                         <label className="col-md-3 col-form-label">Type</label>
                         <div className="col-md-7">
@@ -278,13 +295,29 @@ const EditTool = () => {
                             value={formData.toolCategory}
                             onChange={handleChange}
                             className="form-control"
+                            required
                           >
-                            <option>Tech</option>
-                            <option>News</option>
-                            <option>Political</option>
+                            <option value="" disabled>
+                              -- Select a Type --
+                            </option>
+                            {tools.length > 0
+                              ? tools.map((tool, idx) => {
+                                const val = tool.category || tool;
+                                return (
+                                  <option key={idx} value={val}>
+                                    {val}
+                                  </option>
+                                );
+                              })
+                              : ["Tech", "News", "Political"].map((val) => (
+                                <option key={val} value={val}>
+                                  {val}
+                                </option>
+                              ))}
                           </select>
                         </div>
                       </div>
+
 
                       {/* Short Description */}
                       <div className="form-group row mb-4">

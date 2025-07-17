@@ -48,7 +48,6 @@ const UserManagement = () => {
   const showStatusAndAction = me?.level === "super" || me?.level === "community";
   const isSuperAdmin = me?.level === "super";
 
-
   // Fetch all users on mount using fetchUsers API function.
   useEffect(() => {
     const getUsers = async () => {
@@ -64,6 +63,7 @@ const UserManagement = () => {
           initialUpdates[user._id] = {
             tokenChange: "", // relative change string, e.g., "+50" or "-20"
             subscription: user.subscription || "none",
+            period: user.period || "month",
             role: user.role || "user",
             level: user.level || "admin", // default for admins; ignored for non-admins.
             status: user.status || "active",
@@ -91,7 +91,6 @@ const UserManagement = () => {
       alert("Failed to delete user. Please try again.");
     }
   };
-
 
   // Handler for checkbox selection per row.
   const handleCheckboxChange = (userId, checked) => {
@@ -132,6 +131,7 @@ const UserManagement = () => {
       }
 
       updateData.subscription = updates.subscription;
+      updateData.period = updates.period;
       updateData.role = updates.role;
       // Only update level if role is admin.
       if (updates.role === "admin") {
@@ -260,6 +260,7 @@ const UserManagement = () => {
                         <th>Email</th>
                         {showTokensAndSubscription && <th>Tokens</th>}
                         {showTokensAndSubscription && <th>Subscription</th>}
+                        {showTokensAndSubscription && <th>Period</th>}
                         {showStatusAndAction && <th>Status</th>}
                         {showStatusAndAction && <th>Action</th>}
                       </tr>
@@ -321,6 +322,19 @@ const UserManagement = () => {
                                       <option value="none">None</option>
                                       <option value="basic">Basic</option>
                                       <option value="premium">Premium</option>
+                                    </select>
+                                  </td>
+                                  <td>
+                                    <select
+                                      value={userUpdates[user._id]?.period || "month"}
+                                      onChange={(e) =>
+                                        handleInputChange(user._id, "period", e.target.value)
+                                      }
+                                      className="form-select"
+                                      disabled={userUpdates[user._id]?.subscription === "none"}
+                                    >                    
+                                      <option value="month">Monthly</option>
+                                      <option value="year">Yearly</option>
                                     </select>
                                   </td>
                                 </>

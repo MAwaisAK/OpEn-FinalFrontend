@@ -10,6 +10,8 @@ import "../../styles/admin_assets/css/components.css";
 import Script from "next/script";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import EmojiPicker from 'emoji-picker-react';
+import { BsEmojiSmile } from 'react-icons/bs';
 
 
 const BASE_ENDPOINT = process.env.NEXT_PUBLIC_BASE_ENDPOINT;
@@ -79,6 +81,24 @@ export default function ChatAppMerged() {
   const tribeId = params?.id; // Get tribe ID from route params
   const [filePreviewUrl, setFilePreviewUrl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
+
+  // Add emoji to input
+  const handleEmojiClick = (emojiObject) => {
+    setInput(prev => prev + emojiObject.emoji);
+  };
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ── New for Enlarging Images ──
   const [enlargedImageUrl, setEnlargedImageUrl] = useState(null);
@@ -487,7 +507,29 @@ export default function ChatAppMerged() {
     }
   }, [chats, page]);
 
+  const renderTextWithLargeEmojis = (text) => {
+    // Regex to match most common emojis (single character and some multi-character sequences)
+    const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/gu;
 
+    // Split text into parts: emojis and regular text
+    const parts = text.split(emojiRegex);
+
+    return parts.map((part, index) => {
+      if (emojiRegex.test(part)) {
+        // This part is an emoji - render with larger font size
+        return (
+          <span
+            key={index}
+            style={{ fontSize: "1.5em", display: "inline-block" }}
+          >
+            {part}
+          </span>
+        );
+      }
+      // Regular text - render normally
+      return part;
+    });
+  };
   const renderMessage = (chat, index, isLast) => {
     const isAdmin = tribeInfo?.admins?.includes(authUser?._id);
     const canDelete =
@@ -551,7 +593,7 @@ export default function ChatAppMerged() {
                 </div>
               )}
               <div className="chat-text" style={{ padding: "8px 12px", borderRadius: "16px" }}>
-                {chat.text}
+                {renderTextWithLargeEmojis(chat.text)}
               </div>
             </div>
             <div className="chat-time" style={{ fontSize: "0.8em", color: "#666", marginTop: "4px" }}>
@@ -932,50 +974,70 @@ export default function ChatAppMerged() {
                             {/* Chat Input Form */}
                             {!selectedUser && credentials.room && tribeInfo ? (
                               canSendMessage ? (
-                                <div className="card-footer chat-form">
-                                  <form
-                                    id="chat-form"
-                                    onSubmit={handleMessageSubmit}
-                                    style={{ display: "flex", alignItems: "center" }}
-                                  >
-                                    <textarea
-                                      className="form-control"
-                                      placeholder="Type a message"
-                                      value={input}
-                                      onChange={(e) => setInput(e.target.value)}
-                                      onKeyDown={handleKeyDown}
-                                      style={{
-                                        resize: "none",
-                                        overflow: "hidden",
-                                        height: "50px",
-                                        flex: 1,
-                                      }}
-                                    ></textarea>
-                                    <button
-                                      className="btn btn-primary btn-send"
-                                      type="submit"
-                                      style={{ marginLeft: "5px" }}
+                                <>
+                                  {showEmojiPicker && (
+                                    <div style={{ position: 'absolute', right: 10, bottom: 60, zIndex: 1000 }} ref={emojiPickerRef}>
+                                      <EmojiPicker
+                                        onEmojiClick={handleEmojiClick}
+                                        width={300}
+                                        height={350}
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="card-footer chat-form">
+                                    <form
+                                      id="chat-form"
+                                      onSubmit={handleMessageSubmit}
+                                      style={{ display: "flex", alignItems: "center" }}
                                     >
-                                      <i className="far fa-paper-plane"></i>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn btn-primary btn-file"
-                                      onClick={() => document.getElementById("input-file").click()}
-                                      style={{ marginLeft: "5px" }}
-                                    >
-                                      <i className="mdi mdi-paperclip"></i>
-                                    </button>
-                                    <input
-                                      type="file"
-                                      id="input-file"
-                                      ref={fileInputRef}
-                                      style={{ display: "none" }}
-                                      accept="*/*"
-                                    />
+                                      <textarea
+                                        className="form-control"
+                                        placeholder="Type a message"
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        style={{
+                                          resize: "none",
+                                          overflow: "hidden",
+                                          height: "50px",
+                                          flex: 1,
+                                        }}
+                                      ></textarea>
+                                      <div style={{ position: 'relative' }}>
+                                        <button
+                                          type="button"
+                                          className="btn btn-primary"
+                                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                          style={{ marginLeft: "-150px" }}
+                                        >
+                                          <BsEmojiSmile />
+                                        </button>
+                                      </div>
+                                      <button
+                                        className="btn btn-primary btn-send"
+                                        type="submit"
+                                        style={{ marginLeft: "5px" }}
+                                      >
+                                        <i className="far fa-paper-plane"></i>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn btn-primary btn-file"
+                                        onClick={() => document.getElementById("input-file").click()}
+                                        style={{ marginLeft: "5px" }}
+                                      >
+                                        <i className="mdi mdi-paperclip"></i>
+                                      </button>
+                                      <input
+                                        type="file"
+                                        id="input-file"
+                                        ref={fileInputRef}
+                                        style={{ display: "none" }}
+                                        accept="*/*"
+                                      />
 
-                                  </form>
-                                </div>
+                                    </form>
+                                  </div></>
                               ) : (
                                 <div
                                   className="card-footer chat-form"

@@ -13,28 +13,28 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min';
 
 const PaymentCard = () => {
-    const [isInAppMySite, setIsInAppMySite] = useState(false);
+  const [isInAppMySite, setIsInAppMySite] = useState(false);
 
-useEffect(() => {
-  const ua = window.navigator.userAgent || '';
+  useEffect(() => {
+    const ua = window.navigator.userAgent || '';
 
-  if (ua.includes("APICodeVersion")) {
-    setIsInAppMySite(true);
-  } 
-}, []);
-if (isInAppMySite) {
-  return (
-    <div className="container-scroller d-flex justify-content-center align-items-center vh-100">
-      <div className="text-center p-5 rounded shadow bg-light">
-        <img src="/assets/img/logo.png" alt="logo" style={{ maxWidth: "150px", marginBottom: "20px" }} />
-        <h4>Signup Unavailable</h4>
-        <p className="text-muted">
-          Signup is not available in this environment. Please visit our website in a browser to register an account.
-        </p>
+    if (ua.includes("APICodeVersion")) {
+      setIsInAppMySite(true);
+    }
+  }, []);
+  if (isInAppMySite) {
+    return (
+      <div className="container-scroller d-flex justify-content-center align-items-center vh-100">
+        <div className="text-center p-5 rounded shadow bg-light">
+          <img src="/assets/img/logo.png" alt="logo" style={{ maxWidth: "150px", marginBottom: "20px" }} />
+          <h4>Signup Unavailable</h4>
+          <p className="text-muted">
+            Signup is not available in this environment. Please visit our website in a browser to register an account.
+          </p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
   const stripe = useStripe();
   const elements = useElements();
   const searchParams = useSearchParams();
@@ -56,7 +56,7 @@ if (isInAppMySite) {
   const [discountError, setDiscountError] = useState("");
   const [discountInfo, setDiscountInfo] = useState(null);
   const successToastRef = useRef(null);
-console.log(discountCode);
+  console.log(discountCode);
   const showToast = () => {
     if (successToastRef.current) {
       const toast = new bootstrap.Toast(successToastRef.current);
@@ -78,7 +78,7 @@ console.log(discountCode);
 
   useEffect(() => {
     const courseLikePackages = ["course", "small", "large", "custom"];
-    
+
     if (courseLikePackages.includes(packageType)) {
       setPrice(queryPrice);
     } else {
@@ -102,7 +102,7 @@ console.log(discountCode);
           console.error("Error fetching pricing:", error);
         }
       };
-  
+
       updatePricing(packageType, period);
     }
   }, [packageType, period, queryPrice]);
@@ -117,7 +117,7 @@ console.log(discountCode);
       setDiscountError("Please enter a discount code");
       return;
     }
-    
+
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/payment/validate-discount`,
@@ -127,7 +127,7 @@ console.log(discountCode);
           userId: userData?.username
         }
       );
-      
+
       if (response.data.success) {
         setDiscountApplied(response.data.discount.value);
         setDiscountInfo(response.data.for);
@@ -156,7 +156,7 @@ console.log(discountCode);
       type: "card",
       card: cardElement,
     });
-    
+
     if (pmError) {
       setPaymentStatus(pmError.message);
       setIsProcessing(false);
@@ -166,7 +166,7 @@ console.log(discountCode);
     try {
       const finalPrice = getFinalPrice();
       const amountInCents = Math.round(finalPrice * 100);
-      
+
       // Prepare payment data
       const paymentData = {
         amount: amountInCents,
@@ -206,7 +206,19 @@ console.log(discountCode);
         }
       } else {
         // For non-subscriptions, confirm payment with clientSecret
-        const { clientSecret } = response.data;
+        // For non-subscriptions, confirm payment with clientSecret
+        const { clientSecret, paymentIntentId, message } = response.data;
+
+        if (getFinalPrice() === 0 || !clientSecret) {
+          // No payment needed — success
+          setConfirmed(true);
+          showToast();
+          setTimeout(() => {
+            window.location.href = "/profile";
+          }, 3000);
+          return;
+        }
+
         const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
           clientSecret,
           { payment_method: paymentMethod.id }
@@ -222,6 +234,7 @@ console.log(discountCode);
             window.location.href = "/profile";
           }, 3000);
         }
+
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message;
@@ -234,7 +247,7 @@ console.log(discountCode);
 
   const getDiscountMessage = () => {
     const messages = [];
-    
+
     // Subscription discounts for courses
     if (packageType === "course") {
       if (userData?.subscription === "premium") {
@@ -243,18 +256,18 @@ console.log(discountCode);
         messages.push("80% discount (Basic member)");
       }
     }
-    
+
     // Coupon discounts
     if (discountApplied > 0) {
       messages.push(`${discountApplied}% discount (Coupon)`);
     }
-    
+
     return messages.length > 0 ? messages.join(" + ") : null;
   };
 
   const getFinalPrice = () => {
     let finalPrice = price;
-    
+
     // Apply subscription discounts for courses
     if (packageType === "course") {
       if (userData?.subscription === "premium") {
@@ -263,12 +276,12 @@ console.log(discountCode);
         finalPrice = price; // 80% off
       }
     }
-    
+
     // Apply coupon discount
     if (discountApplied > 0) {
       finalPrice = finalPrice * (1 - discountApplied / 100);
     }
-    
+
     return finalPrice;
   };
 
@@ -281,7 +294,7 @@ console.log(discountCode);
         </div>
       );
     }
-    
+
     return (
       <div className="package-details">
         <h4>{packageType.charAt(0).toUpperCase() + packageType.slice(1)} Package</h4>
@@ -310,7 +323,7 @@ console.log(discountCode);
                 <div className="check-card-container">
                   <div className="check-card">
                     <h5 className="mb-3">Payment Information</h5>
-                    
+
                     <form onSubmit={handleSubmit}>
                       <div className="mb-3">
                         <label className="form-label">Card Details</label>
@@ -406,7 +419,7 @@ console.log(discountCode);
                           `Pay $${getFinalPrice().toFixed(2)}`
                         )}
                       </button>
-                      
+
                       {paymentStatus && (
                         <div className={`mt-3 alert ${paymentStatus.includes("successful") || paymentStatus.includes("activated") ? "alert-success" : "alert-danger"}`}>
                           {paymentStatus}
@@ -422,28 +435,28 @@ console.log(discountCode);
                   <div className="receipt-header">
                     <h4>Order Summary</h4>
                   </div>
-                  
+
                   {renderPackageDetails()}
-                  
+
                   <div className="price-breakdown">
                     <div className="d-flex justify-content-between">
                       <span>Subtotal:</span>
                       <span>${price.toFixed(2)}</span>
                     </div>
-                    
+
                     {getDiscountMessage() && (
                       <div className="d-flex justify-content-between text-success">
                         <span>Discount:</span>
                         <span>{getDiscountMessage()}</span>
                       </div>
                     )}
-                    
+
                     <div className="d-flex justify-content-between mt-2 total-row">
                       <strong>Total:</strong>
                       <strong>${getFinalPrice().toFixed(2)}</strong>
                     </div>
                   </div>
-                  
+
                   <div className="security-info mt-4">
                     <div className="d-flex align-items-center mb-2">
                       <i className="bi bi-shield-lock me-2 text-success"></i>
@@ -454,7 +467,7 @@ console.log(discountCode);
                       <span>Card details never stored on our servers</span>
                     </div>
                   </div>
-                  
+
                   <div className="payment-methods mt-4">
                     <p className="text-muted small">We accept:</p>
                     <div className="d-flex gap-2">
@@ -470,7 +483,7 @@ console.log(discountCode);
           </div>
         </div>
       </div>
-      
+
       <div
         ref={successToastRef}
         className="toast align-items-center text-white bg-success border-0 position-fixed bottom-0 end-0 m-4"

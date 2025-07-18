@@ -6,7 +6,7 @@ if (typeof window !== "undefined") {
     function (config) {
       try {
         const { origin } = new URL(config.url);
-        const allowedOrigins = [process.env.NEXT_PUBLIC_BASE_ENDPOINT];
+        const allowedOrigins = ["https://openpreneurs.business","https://openpreneurs.business","http://localhost:3000"];
         const token = localStorage.getItem("access-token");
 
         if (allowedOrigins.includes(origin) && token) {

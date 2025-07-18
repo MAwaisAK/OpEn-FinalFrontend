@@ -6,7 +6,8 @@ if (typeof window !== "undefined") {
     function (config) {
       try {
         const { origin } = new URL(config.url);
-        const allowedOrigins = ["http://localhost:4000","https://openpreneurs.business/api","https://www.openpreneurs.business/api"];
+        console.log(origin);
+        const allowedOrigins = ["https://openpreneurs.business","https://www.openpreneurs.business","https://openpreneurs.business/api","https://www.openpreneurs.business/api","http://localhost:4000"];
         const token = localStorage.getItem("access-token");
 
         if (allowedOrigins.includes(origin) && token) {

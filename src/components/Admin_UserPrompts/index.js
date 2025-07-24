@@ -116,9 +116,13 @@ const UserPrompts = () => {
                                 <tr key={prompt._id || index}>
                                   <td className="text-center">{index + 1}</td>
                                   <td>
-                                    <a href={`/profile/tribers/${prompt.userId}`}>
-                                      {prompt.user.username}
-                                    </a>
+                                    {prompt.user ? (
+                                      <a href={`/profile/tribers/${prompt.userId}`}>
+                                        {prompt.user.username}
+                                      </a>
+                                    ) : (
+                                      "Unknown User" // Fallback if the user is null
+                                    )}
                                   </td>
                                   <td>{prompt.tokens_used}</td>
                                   <td>{new Date(prompt.createdAt).toLocaleString()}</td>

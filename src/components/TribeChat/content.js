@@ -23,9 +23,9 @@ const DateSeparator = ({ label }) => (
     <span
       style={{
         background: '#e0e0e0',
-        padding: '4px 12px',
+        padding: '4px 10px',
         borderRadius: '12px',
-        fontSize: '0.8em',
+        fontSize: '0.7em',
         color: '#555',
       }}
     >
@@ -83,6 +83,28 @@ export default function ChatAppMerged() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef(null);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [deletedMessages, setDeletedMessages] = useState([]);
+
+
+  // Toggle dropdown visibility
+  const toggleDropdown = (chatId, e) => {
+    e.stopPropagation(); // Prevent event from bubbling up to parent
+    setOpenDropdown(openDropdown === chatId ? null : chatId);
+  };
+
+  // Close dropdown when clicked outside
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (e.target.closest('.message-container') === null) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick); // Cleanup
+  }, []);
+
 
   // Add emoji to input
   const handleEmojiClick = (emojiObject) => {
@@ -158,6 +180,31 @@ export default function ChatAppMerged() {
       console.error("Error downloading file:", error);
     }
   };
+
+  const deleteForMe = async (messageId, senderId) => {
+    try {
+      // Call your backend API to perform the deletion logic
+      const response = await fetch(`${BASE_ENDPOINT}/messages/${messageId}/delete-for-tribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messageId,  // Pass the message ID
+          senderId,   // Pass the sender ID
+          userId: credentials.userId, // Pass the current user's ID
+        }),
+      });
+      setDeletedMessages((prevDeletedMessages) => [
+        ...prevDeletedMessages,
+        messageId,
+      ]);
+
+    } catch (error) {
+      console.error("Error in deleteForMe:", error);
+    }
+  };
+
 
 
   useEffect(() => {
@@ -319,7 +366,7 @@ export default function ChatAppMerged() {
 
           setIsLoading(true);
           const { data } = await axios.get(
-            `${BASE_ENDPOINT}/my-tribes/tribe-messages/${credentials.room}?page=${page}`,
+            `${BASE_ENDPOINT}/my-tribes/tribe-messages/${credentials.room}?page=${page}&userId=${credentials.userId}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("access-token")}`,
@@ -532,6 +579,7 @@ export default function ChatAppMerged() {
   };
   const renderMessage = (chat, index, isLast) => {
     const isAdmin = tribeInfo?.admins?.includes(authUser?._id);
+    console.log(chat);
     const canDelete =
       // original sender within 7min
       (chat.senderId === credentials.userId &&
@@ -573,6 +621,7 @@ export default function ChatAppMerged() {
             alignItems: "flex-start",
             marginBottom: "10px",
             flexDirection: chat.from === credentials.name ? "row-reverse" : "row",
+            display: deletedMessages.includes(chat.id) ? "none" : "block",
           }}
         >
           <img
@@ -586,16 +635,89 @@ export default function ChatAppMerged() {
             }}
           />
           <div className="chat-details">
-            <div className="message-container" style={{ position: "relative", display: "inline-block" }}>
+            <div className="message-container" style={{ position: "relative", display: "inline-block", }}>
               {showUsername && (
                 <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '12px' }}>
                   {chat.senderUsername}
                 </div>
               )}
-              <div className="chat-text" style={{ padding: "8px 12px", borderRadius: "16px" }}>
+              <div className="chat-text" style={{ padding: "8px 12px", borderRadius: "16px", position: "relative", }}>
                 {renderTextWithLargeEmojis(chat.text)}
+
+                {/* 3 Dot Icon */}
+                <div
+                  className="three-dots-icon"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                    left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "black",
+                  }}
+                  onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+                >
+                  <i className="mdi mdi-dots-vertical" />
+                </div>
+
+                {/* Dropdown Menu */}
+                {openDropdown === index && (
+                  <div
+                    className="dropdown-menu-tribe"
+                    style={{
+                      position: "absolute",
+                      top: "100%",  // Position it just below the text
+                      right: "0",
+                      backgroundColor: "#fff",
+                      boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.2)",
+                      borderRadius: "8px",
+                      zIndex: "10",
+                    }}
+                  >
+                    {/* Delete for Me option */}
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #eee",
+                      }}
+                      onClick={() =>
+                        deleteForMe(chat.id, credentials.userId)  // Call the function for "Delete for Me"
+                      }
+                    >
+                      Delete for Me
+                    </div>
+
+                    {/* Delete for Everyone option with condition */}
+                    {canDelete && (  // Check if the user can delete for everyone
+                      <div
+                        className="dropdown-item"
+                        style={{
+                          padding: "8px 16px",
+                          cursor: "pointer",
+                        }}
+                        onClick={() =>
+                          deleteTribeMessage(
+                            chat.id,                    // messageId
+                            "forEveryone",              // deleteType
+                            credentials.room,           // chatLobbyId
+                            credentials.userId,         // userId
+                            chat.timestamp              // timestamp
+                          )
+                        }
+                      >
+                        Delete for Everyone
+                      </div>
+                    )}
+                  </div>
+                )}
+
+
               </div>
             </div>
+
             <div className="chat-time" style={{ fontSize: "0.8em", color: "#666", marginTop: "4px" }}>
               {chat.time}
             </div>
@@ -604,25 +726,7 @@ export default function ChatAppMerged() {
                 {chat.seen ? "Seen" : ""}
               </div>
             )}
-            {canDelete && (
-              <div className="message-options" style={{ marginTop: "5px", padding: "2px", borderRadius: "4px" }}>
-                <i
-                  className="mdi mdi-delete"
-                  style={{ cursor: "pointer", fontSize: "1.2em" }}
-                  onClick={() =>
-                    deleteTribeMessage(
-                      chat.id,                    // messageId
-                      "forEveryone",              // deleteType
-                      credentials.room,           // chatLobbyId
-                      credentials.userId,         // userId
-                      chat.timestamp              // timestamp
-                    )
-                  }
 
-                  title="Delete for Everyone"
-                ></i>
-              </div>
-            )}
           </div>
         </div>
       );
@@ -684,6 +788,74 @@ export default function ChatAppMerged() {
                   </div>
                 </div>
               )}
+              <div
+                className="three-dots-icon"
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                  left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                  transform: "translateY(-50%)",
+                  cursor: "pointer",
+                  color: "black",
+                }}
+                onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+              >
+                <i className="mdi mdi-dots-vertical" />
+              </div>
+
+              {/* Dropdown Menu */}
+              {openDropdown === index && (
+                <div
+                  className="dropdown-menu-tribe"
+                  style={{
+                    position: "absolute",
+                    top: "100%",  // Position it just below the text
+                    right: "0",
+                    backgroundColor: "#fff",
+                    boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.2)",
+                    borderRadius: "8px",
+                    zIndex: "10",
+                  }}
+                >
+                  {/* Delete for Me option */}
+                  <div
+                    className="dropdown-item"
+                    style={{
+                      padding: "8px 16px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee",
+                    }}
+                    onClick={() =>
+                      deleteForMe(chat.id, credentials.userId)  // Call the function for "Delete for Me"
+                    }
+                  >
+                    Delete for Me
+                  </div>
+
+                  {/* Delete for Everyone option with condition */}
+                  {canDelete && (  // Check if the user can delete for everyone
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() =>
+                        deleteTribeMessage(
+                          chat.id,                    // messageId
+                          "forEveryone",              // deleteType
+                          credentials.room,           // chatLobbyId
+                          credentials.userId,         // userId
+                          chat.timestamp              // timestamp
+                        )
+                      }
+                    >
+                      Delete for Everyone
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="chat-time" style={{ fontSize: "0.8em", color: "#666", marginTop: "4px" }}>
               {chat.time}
@@ -694,25 +866,6 @@ export default function ChatAppMerged() {
               </div>
             )}
             <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
-              {canDelete && (
-                <div className="message-options" style={{ display: "flex", padding: "2px", borderRadius: "4px", marginRight: "10px" }}>
-                  <i
-                    className="mdi mdi-delete"
-                    style={{ cursor: "pointer", fontSize: "1.2em" }}
-                    onClick={() =>
-                      deleteTribeMessage(
-                        chat.id,                    // messageId
-                        "forEveryone",              // deleteType
-                        credentials.room,           // chatLobbyId
-                        credentials.userId,         // userId
-                        chat.timestamp              // timestamp
-                      )
-                    }
-
-                    title="Delete for Everyone"
-                  ></i>
-                </div>
-              )}
               <div className="download-icon" style={{ display: "flex", padding: "2px", borderRadius: "4px" }}>
                 <i
                   className="mdi mdi-download"

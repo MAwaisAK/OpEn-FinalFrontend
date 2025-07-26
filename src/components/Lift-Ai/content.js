@@ -38,6 +38,21 @@ const MyTribes = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const resetSession = async () => {
+      try {
+        await axios.post(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/lift-ai/reset-session`, { userId });
+      } catch (err) {
+        console.error("Error resetting session:", err);
+      }
+    };
+
+    // Trigger reset on page load or refresh
+    if (userId) {
+      resetSession();
+    }
+  }, [userId]);
+
   const handleSend = async () => {
     if (!input.trim()) return;
     const text = input.trim();

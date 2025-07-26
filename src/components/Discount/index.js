@@ -32,6 +32,8 @@ const DiscountManagement = () => {
   const [newDiscountFor, setNewDiscountFor] = useState("tokens");
   const [newDiscountCount, setNewDiscountCount] = useState("1");
   const [newDiscountNumberOfUses, setNewDiscountNumberOfUses] = useState("1");
+  const [newSubscriptionType, setNewSubscriptionType] = useState("basic"); // New state for subscription type
+  const [newPeriod, setNewPeriod] = useState("month"); // New state for period
 
   const router = useRouter();
 
@@ -63,10 +65,10 @@ const DiscountManagement = () => {
         const arr = Array.isArray(res.data)
           ? res.data
           : Array.isArray(res.data?.data)
-          ? res.data.data
-          : Array.isArray(res)
-          ? res
-          : [];
+            ? res.data.data
+            : Array.isArray(res)
+              ? res
+              : [];
         setDiscounts(arr);
       } catch (err) {
         console.error("Error loading discounts:", err);
@@ -81,8 +83,8 @@ const DiscountManagement = () => {
     const uses = parseInt(newDiscountNumberOfUses, 10);
 
     if (isNaN(val) || val < 0 || val > 100) return alert("Enter a valid % value");
-    if (!["tokens", "subscription","course"].includes(newDiscountFor))
-      return alert("Select tokens or subscription");
+    if (!["tokens", "subscription", "course"].includes(newDiscountFor))
+      return alert("Select tokens, subscription, or course");
     if (isNaN(cnt) || cnt < 1) return alert("Enter a valid coupon count");
     if (isNaN(uses) || uses < 1) return alert("Enter a valid max uses");
 
@@ -92,18 +94,22 @@ const DiscountManagement = () => {
         for: newDiscountFor,
         count: cnt,
         numberOfUses: uses,
+        subscription: newSubscriptionType, // Pass the new subscription type
+        period: newPeriod, // Pass the new period
       });
       const created = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
-        ? res.data.data
-        : [];
+          ? res.data.data
+          : [];
       if (created.length > 0) {
         setDiscounts((prev) => [...created, ...prev]);
         setNewDiscountValue("");
         setNewDiscountFor("tokens");
         setNewDiscountCount("1");
         setNewDiscountNumberOfUses("1");
+        setNewSubscriptionType("basic"); // Reset subscription type
+        setNewPeriod("month"); // Reset period
         alert(`Created ${created.length} coupon(s).`);
       } else {
         alert("No coupons created.");
@@ -122,7 +128,7 @@ const DiscountManagement = () => {
   };
 
   // Bulk delete selected
-const handleDeleteSelected = async () => {
+  const handleDeleteSelected = async () => {
     if (selectedDiscounts.length === 0) {
       return alert("No discounts selected.");
     }
@@ -154,7 +160,7 @@ const handleDeleteSelected = async () => {
   );
 
   const usedByListTemplate = (row) => {
-    const list = (row.used_by || []).map((u) => u|| u._id).join(", ");
+    const list = (row.used_by || []).map((u) => u || u._id).join(", ");
     return list ? (
       <span
         style={{ cursor: "pointer", textDecoration: "underline" }}
@@ -189,10 +195,10 @@ const handleDeleteSelected = async () => {
                       type="number"
                       className="form-control"
                       min={0}
-                      placeholder="e.g. 10%"
                       max={100}
                       value={newDiscountValue}
                       onChange={(e) => setNewDiscountValue(e.target.value)}
+                      placeholder="e.g. 10%"
                     />
                   </div>
                   <div className="col-sm-2">
@@ -224,16 +230,40 @@ const handleDeleteSelected = async () => {
                       className="form-control"
                       min={1}
                       value={newDiscountNumberOfUses}
-                      onChange={(e) =>
-                        setNewDiscountNumberOfUses(e.target.value)
-                      }
+                      onChange={(e) => setNewDiscountNumberOfUses(e.target.value)}
                     />
                   </div>
+
+                  {/* Conditionally render Subscription and Period only if 'subscription' is selected */}
+                  {newDiscountFor === "subscription" && (
+                    <>
+                      <div className="col-sm-2">
+                        <label className="form-label">Subscription</label>
+                        <select
+                          className="form-select"
+                          value={newSubscriptionType}
+                          onChange={(e) => setNewSubscriptionType(e.target.value)}
+                        >
+                          <option value="basic">Basic</option>
+                          <option value="premium">Premium</option>
+                        </select>
+                      </div>
+                      <div className="col-sm-2">
+                        <label className="form-label">Period</label>
+                        <select
+                          className="form-select"
+                          value={newPeriod}
+                          onChange={(e) => setNewPeriod(e.target.value)}
+                        >
+                          <option value="month">Monthly</option>
+                          <option value="year">Yearly</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
                   <div className="col-sm-2">
-                    <button
-                      className="btn btn-success"
-                      onClick={handleCreateDiscount}
-                    >
+                    <button className="btn btn-success" onClick={handleCreateDiscount}>
                       Create
                     </button>
                   </div>
@@ -246,6 +276,7 @@ const handleDeleteSelected = async () => {
                     </button>
                   </div>
                 </div>
+
 
                 {/* DataTable */}
                 <div className="card">
@@ -274,7 +305,18 @@ const handleDeleteSelected = async () => {
                     />
                     <Column field="token" header="Token" sortable />
                     <Column field="value" header="Value (%)" sortable />
-                    <Column field="for" header="For" sortable />
+                    <Column
+                      field="for"
+                      header="For"
+                      sortable
+                      body={(row) => {
+                        if (row.for === "subscription") {
+                          return `${row.for.charAt(0).toUpperCase() + row.for.slice(1)} (${row.subscription}, ${row.period})`;
+                        }
+                        return row.for.charAt(0).toUpperCase() + row.for.slice(1); // Capitalize the first letter for other types
+                      }}
+                    />
+
                     <Column
                       header="Used By Count"
                       body={(row) =>

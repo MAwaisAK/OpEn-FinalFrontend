@@ -124,6 +124,7 @@ const PaymentCard = () => {
         {
           token: discountCode,
           packageType,
+          period: period,
           userId: userData?.username
         }
       );

@@ -7,7 +7,7 @@ if (typeof window !== "undefined") {
       try {
         const { origin } = new URL(config.url);
         console.log(origin);
-        const allowedOrigins = ["https://openpreneurs.business","https://www.openpreneurs.business","https://openpreneurs.business/api","https://www.openpreneurs.business/api","http://localhost:4000"];
+        const allowedOrigins = ["https://openpreneurs.business", "https://www.openpreneurs.business", "https://openpreneurs.business/api", "https://www.openpreneurs.business/api", "http://localhost:4000"];
         const token = localStorage.getItem("access-token");
 
         if (allowedOrigins.includes(origin) && token) {
@@ -33,7 +33,7 @@ export const fetchAllUsers = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -44,7 +44,7 @@ export const fetchUsers = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -233,7 +233,7 @@ export const fetchAllTools = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -244,7 +244,7 @@ export const fetchAllUSerTools = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -266,7 +266,7 @@ export const fetchAllToolsUser = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -277,7 +277,7 @@ export const fetchAllCourses = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -288,7 +288,7 @@ export const fetchAllUserCourses = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -328,6 +328,19 @@ export const searchUsers = async (query) => {
     return response.data;
   } catch (error) {
     console.error('Error searching users:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const updateReportNote = async (reportId, newNote) => {
+  try {
+    const { data } = await axios.put(
+      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/support/update-note`,
+      { reportId, newNote }
+    );
+    return data;
+  } catch (error) {
+    console.error("Error updating report note:", error);
     throw error;
   }
 };
@@ -388,7 +401,7 @@ export const fetchAllTribes = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 export const fetchUsersAllTribes = async () => {
@@ -398,7 +411,7 @@ export const fetchUsersAllTribes = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -605,14 +618,14 @@ export const fetchTopProductsBySold = async () => {
     );
     return data;
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
 export const getFriendRequests = async (userId) => {
   try {
     const response = await axios.get(
-      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/friend-requests`,{ params: { userId } }
+      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/friend-requests`, { params: { userId } }
     );
     return response.data; // Return friend requests
   } catch (error) {
@@ -660,7 +673,7 @@ export const createChatLobbyRequest = async (userId1, userId2) => {
 export const getChatLobby = async (userId) => {
   try {
     const response = await axios.get(
-      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/get-chat-lobbies`,  { params: { userId } }
+      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/get-chat-lobbies`, { params: { userId } }
     );
     return response.data;
   } catch (error) {
@@ -698,7 +711,7 @@ export const sendContactMessage = async (data) => {
     const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/verify/contactus`, data);
     return response.data;  // Success response
   } catch (error) {
-       // Error handling
+    // Error handling
   }
 };
 
@@ -720,7 +733,7 @@ export const sendFriendRequest = async (receiverId, currentUserId) => {
 
 
 // Accept a friend request
-export const acceptFriendRequest = async (receiverId, currentUserId ) => {
+export const acceptFriendRequest = async (receiverId, currentUserId) => {
   try {
     const response = await axios.put(
       `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/accept-request`,
@@ -737,7 +750,7 @@ export const acceptFriendRequest = async (receiverId, currentUserId ) => {
 };
 
 // Reject a friend request
-export const rejectFriendRequest = async (receiverId, currentUserId ) => {
+export const rejectFriendRequest = async (receiverId, currentUserId) => {
   try {
     const response = await axios.put(
       `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/reject-request`,
@@ -1011,14 +1024,14 @@ export const getUserProfileForCheckerAPI = async (targetUserId) => {
 export const getAddress = async (email) => {
   try {
     const { data } = await axios.get(
-      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/get-address`, 
+      `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/auth/get-address`,
       {
         params: { email } // Pass email as a query parameter
       }
     );
     return data;
   } catch (error) {
-      // Handle or rethrow the error as needed
+    // Handle or rethrow the error as needed
   }
 };
 
@@ -1028,12 +1041,12 @@ export const verifyEmail = async (token) => {
   try {
     // Make a GET request to the verification endpoint
     const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/verify/verify/${token}`);
-    
+
     // Return the response data
     return data;
   } catch (error) {
     // Log the error details
-    
+
     // Throw a custom error message or handle it as needed
   }
 };
@@ -1081,7 +1094,7 @@ export const fetchBannerImage = async () => {
     const { data } = await axios.get(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/images/get-bannerimage`);
     return data; // data will contain the banner image details
   } catch (error) {
-      // Optional: handle error as needed
+    // Optional: handle error as needed
   }
 };
 
@@ -1092,7 +1105,7 @@ export const fetchTotalLogin = async (rangeType) => {
     );
     return data; // Assuming the API returns the total orders data
   } catch (error) {
-     
+
   }
 };
 
@@ -1195,7 +1208,7 @@ export const getRandomUserProfiles = async (page = 1, userId) => {
     if (!baseUrl) {
       throw new Error("Base endpoint is not defined in environment variables.");
     }
-    const response = await axios.get(`${baseUrl}/auth/tribes-profile`, {page, user_id: userId}
+    const response = await axios.get(`${baseUrl}/auth/tribes-profile`, { page, user_id: userId }
     );
     return response.data;
   } catch (error) {
@@ -1513,7 +1526,7 @@ export const replaceNewsSection = async (newsId, sectionData) => {
 const ADMIN_BASE = `${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/admin`;
 
 // Admin login
-export const loginAdmin = async ({ username, password}) => {
+export const loginAdmin = async ({ username, password }) => {
   try {
     const { data } = await axios.post(`${ADMIN_BASE}/login`, {
       username,
@@ -1562,9 +1575,9 @@ export const createAdmin = async (adminPayload, level) => {
   try {
     const { data } = await axios.post(
       `${ADMIN_BASE}/create`,
-      adminPayload,{
-    params: { level }
-  });
+      adminPayload, {
+      params: { level }
+    });
     return data;
   } catch (error) {
     console.error("Error creating admin:", error);
@@ -1575,11 +1588,11 @@ export const createAdmin = async (adminPayload, level) => {
 // Fetch all admins
 export const fetchAllAdmins = async (level) => {
   try {
-     if (!level) throw new Error("Must provide level");
-  const res = await axios.get(`${ADMIN_BASE}/`, {
-    params: { level }
-  });
-  return res.data; // array of admins
+    if (!level) throw new Error("Must provide level");
+    const res = await axios.get(`${ADMIN_BASE}/`, {
+      params: { level }
+    });
+    return res.data; // array of admins
   } catch (error) {
     console.error("Error fetching admins:", error);
     throw error;
@@ -1603,11 +1616,11 @@ export const updateAdminRole = async ({ adminId, newlevel }, level) => {
 };
 
 // Update admin credentials (username and/or password)
-export const updateAdminCredentials = async ({ adminId, username, password,email },level) => {
+export const updateAdminCredentials = async ({ adminId, username, password, email }, level) => {
   try {
     const { data } = await axios.put(
       `${ADMIN_BASE}/update`,
-      { adminId, username, password,email },
+      { adminId, username, password, email },
       { params: { level } }
     );
     return data;

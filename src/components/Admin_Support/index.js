@@ -6,40 +6,40 @@ import Script from "next/script";
 import Navbar from "../Admin_Nav";
 import Resources from "../Admin_Scripts";
 import { useRouter } from "next/navigation";
-import { fetchSupportReports, updateSupportReportStatus, fetchMe } from "@/app/api";
+import { fetchSupportReports, updateSupportReportStatus, fetchMe, updateReportNote } from "@/app/api";
 import "datatables.net-bs4";
 import "../../styles/admin_assets/bundles/datatables/datatables.min.css";
 import "../../styles/admin_assets/bundles/datatables/DataTables-1.10.16/css/dataTables.bootstrap4.min.css";
 
 const UserReports = () => {
-   const router = useRouter();
-    const [me, setMe] = useState(null); // <- new state for current user
-    const [loading3, setLoading3] = useState(true); // <- new state for current user
-    const [loading2, setLoading2] = useState(true); // <- new state for current user
-    useEffect(() => {
-      const getCurrentUser = async () => {
-        try {
-          const response = await fetchMe();
-          setMe(response); // assuming response contains user object directly
-        } catch (error) {
-          console.error("Error fetching current user:", error);
-        } finally {
-          setLoading3(false); // <- Move here to ensure it always runs after fetch
-        }
-      };
-  
-      getCurrentUser();
-    }, []);
-  
-    useEffect(() => {
-      if (!loading3) {
-        if (me && (me.level !== "super" && me.level !== "community"  && me.level !== "finance")) {
-          router.push("/admin/opulententrepreneurs/open/dashboard");
-        } else {
-          setLoading2(false); // Only allow render when authorized
-        }
+  const router = useRouter();
+  const [me, setMe] = useState(null); // <- new state for current user
+  const [loading3, setLoading3] = useState(true); // <- new state for current user
+  const [loading2, setLoading2] = useState(true); // <- new state for current user
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const response = await fetchMe();
+        setMe(response); // assuming response contains user object directly
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+      } finally {
+        setLoading3(false); // <- Move here to ensure it always runs after fetch
       }
-    }, [me, loading3]);
+    };
+
+    getCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    if (!loading3) {
+      if (me && (me.level !== "super" && me.level !== "community" && me.level !== "finance")) {
+        router.push("/admin/opulententrepreneurs/open/dashboard");
+      } else {
+        setLoading2(false); // Only allow render when authorized
+      }
+    }
+  }, [me, loading3]);
   const [reports, setReports] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalDescription, setModalDescription] = useState("");
@@ -47,6 +47,22 @@ const UserReports = () => {
   const [dtScriptLoaded, setDtScriptLoaded] = useState(false);
   const [dtInitialized, setDtInitialized] = useState(false);
   const dtRef = useRef(null);
+
+  const handleNoteChange = async (reportId, newNote) => {
+    try {
+      await updateReportNote(reportId, newNote);
+      setReports((prevReports) =>
+        prevReports.map((report) =>
+          report._id === reportId ? { ...report, Note: newNote } : report
+        )
+      );
+      alert("Note updated successfully");
+    } catch (error) {
+      console.error("Error updating report note:", error);
+      alert("Error updating report note.");
+    }
+  };
+
 
   const handleDtLoad = () => setDtScriptLoaded(true);
 
@@ -115,7 +131,7 @@ const UserReports = () => {
     setModalDescription(description);
     setShowModal(true);
   };
-    if (loading2) {
+  if (loading2) {
     return <div className="p-4">Loading...</div>;
   }
 
@@ -175,8 +191,10 @@ const UserReports = () => {
                                 <th>Subscription</th>
                                 <th>Type</th>
                                 <th>Description</th>
+                                <th>Note</th>
+                                <th>Action</th>
                                 <th>Status</th>
-                                 <th>Created At</th> {/* NEW */}
+                                <th>Created At</th>
                                 <th style={{ display: "none" }}>Raw Status</th>
                               </tr>
                             </thead>
@@ -220,8 +238,35 @@ const UserReports = () => {
                                       )}
                                     </td>
                                     <td>
-  {new Date(report.createdAt).toLocaleString()}
-</td>
+                                      <textarea
+                                        value={report.Note}
+                                        onChange={(e) => {
+                                          // Directly update the Note locally while the user types
+                                          const newNote = e.target.value;
+                                          setReports((prevReports) =>
+                                            prevReports.map((r) =>
+                                              r._id === report._id ? { ...r, Note: newNote } : r
+                                            )
+                                          );
+                                        }}
+                                        className="form-control form-control-sm"
+                                        rows={3}  // Start with 3 rows (adjust as necessary)
+                                        style={{ resize: "vertical" }} // Allow vertical resizing
+                                      />
+                                    </td>
+
+                                    <td>
+                                      <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() => handleNoteChange(report._id, report.Note)} // Call handleNoteChange on Save
+                                      >
+                                        Save
+                                      </button>
+                                    </td>
+
+                                    <td>
+                                      {new Date(report.createdAt).toLocaleString()}
+                                    </td>
 
                                     <td>
                                       <select

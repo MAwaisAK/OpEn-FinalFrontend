@@ -10,6 +10,7 @@ const ProtectedRoute = ({ children }) => {
 
   const allowedRoutesForNone = [
     "/profile/user-courses",
+    "/profile/checkout",
     "/profile",
     "/profile/support",
     "/profile/settings",

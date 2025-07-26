@@ -223,6 +223,10 @@ body {
 .tool-ui-table-element tbody tr:nth-child(even) {
   background-color: #0000000b;
 }
+.tool-ui-table-element tbody:hover {
+  cursor: pointer;
+}
+
 
 .tool-ui-table-element tbody tr {
   --delay: 0.1s;
@@ -230,7 +234,7 @@ body {
 }
 
 .tool-ui-table-element tbody tr:hover {
-  background-color: #fff6 !important;
+  background-color: rgba(118, 195, 195, 0.4) !important;
 }
 
 /* Status styling */
@@ -278,11 +282,11 @@ body {
 }
 
 .tool-ui-table-element thead th:hover .tool-ui-icon-arrow {
-  border: 1.4px solid #6c00bd;
+  border: 1.4px solid #fff;
 }
 
 .tool-ui-table-element thead th:hover {
-  color: #6c00bd;
+  color: #fff;
 }
 
 .tool-ui-table-element thead th.active .tool-ui-icon-arrow {

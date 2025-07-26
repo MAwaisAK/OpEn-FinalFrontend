@@ -60,7 +60,8 @@ const PaymentForm = ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             token: discountCode.trim(),
-            packageType:"subscription",
+            packageType: selectedPlan,
+            period: selectedPeriod,
           }),
         }
       );

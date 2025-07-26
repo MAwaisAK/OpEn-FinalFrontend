@@ -324,7 +324,6 @@ export default function Home() {
                       <li>Customizable Business Page</li>
                       <li>Global Network Building</li>
                       <li>Startup Growth Toolkit</li>
-                      <li>Higher AI Credit Cost</li>
                       <li>80% Discount to Courses Entrepreneurship</li>
                       <li>
                         AI Business Executive Assistance
@@ -358,7 +357,6 @@ export default function Home() {
                       <li>Customizable Business Page</li>
                       <li>Global Network Building</li>
                       <li>Startup Growth Toolkit</li>
-                      <li>Higher AI Credit Cost</li>
                       <li>Full Access to Entrepreneurship Courses</li>
                       <li>
                         AI Business Executive Assistance

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import Sidebar from "../AdminSideBar";
 import Navbar from "../Nav";
 import countries from "world-countries";
@@ -277,7 +278,7 @@ const MyTribes = () => {
     }
   };
 
-    const handleCancelSubscription = async (id) => {
+  const handleCancelSubscription = async (id) => {
     if (!confirm("Are you sure you want to cancel this subscription?")) return;
     try {
       await cancelanySubscription(id);
@@ -292,7 +293,7 @@ const MyTribes = () => {
       alert("Failed to cancel subscription.");
     }
   };
-  
+
 
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
@@ -955,13 +956,22 @@ const MyTribes = () => {
                         <div className={`tab-pane ${activeTab === "billing" ? "active" : ""}`} id="billing">
                           <h6>BILLING SETTINGS</h6>
                           {user.subscription !== "none" && (
-      <button
-        className="btn btn-danger btn-sm"
-        onClick={() => handleCancelSubscription(user._id)}
-      >
-        Cancel Subscription
-      </button>
-    )}
+                            <>
+                              <button
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleCancelSubscription(user._id)}
+                              >
+                                Cancel Subscription
+                              </button>
+                              <Link
+                                className="btn btn-primary btn-sm ml-2"
+                                href="/profile/change-card" // Trigger modal visibility
+                              >
+                                Change Card
+                              </Link>
+
+                            </>
+                          )}
                           <hr />
 
                           {/* Payment History Table */}
@@ -1076,6 +1086,7 @@ const MyTribes = () => {
                                     <th>Type</th>
                                     <th>Description</th>
                                     <th>Status</th>
+                                    <th>Note</th>
                                     <th>Created At</th>
                                   </tr>
                                 </thead>
@@ -1109,6 +1120,19 @@ const MyTribes = () => {
                                         >
                                           {r.status}
                                         </span>
+                                      </td>
+                                      <td>
+                                        <div
+                                          style={{
+                                            maxHeight: "80px",
+                                            overflowY: "auto",
+                                            whiteSpace: "pre-wrap",
+                                            wordBreak: "break-word",
+                                            padding: "4px",
+                                          }}
+                                        >
+                                          {r.Note}
+                                        </div>
                                       </td>
                                       <td>{new Date(r.createdAt).toLocaleString()}</td>
                                     </tr>

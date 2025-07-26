@@ -24,9 +24,9 @@ const DateSeparator = ({ label }) => (
     <span
       style={{
         background: '#e0e0e0',
-        padding: '4px 12px',
+        padding: '4px 10px',
         borderRadius: '12px',
-        fontSize: '0.8em',
+        fontSize: '0.7em',
         color: '#555',
       }}
     >
@@ -91,10 +91,56 @@ export default function ChatAppMerged() {
   const [enlargedImageUrl, setEnlargedImageUrl] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef(null);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [deletedMessages, setDeletedMessages] = useState([]);
+
+
+  // Toggle dropdown visibility
+  const toggleDropdown = (chatId, e) => {
+    e.stopPropagation(); // Prevent event from bubbling up to parent
+    setOpenDropdown(openDropdown === chatId ? null : chatId);
+  };
+
+  // Close dropdown when clicked outside
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (e.target.closest('.message-container') === null) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick); // Cleanup
+  }, []);
 
   // Add emoji to input
   const handleEmojiClick = (emojiObject) => {
     setInput(prev => prev + emojiObject.emoji);
+  };
+
+  const deleteForMe = async (messageId, senderId, roomId) => {
+    try {
+      // Call your backend API to perform the deletion logic
+      const response = await fetch(`${BASE_ENDPOINT}/messages/${messageId}/delete-for-me`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messageId,  // Pass the message ID
+          senderId,   // Pass the sender ID
+          userId: credentials.userId, // Pass the current user's ID
+          chatLobbyId: roomId,
+        }),
+      });
+      setDeletedMessages((prevDeletedMessages) => [
+        ...prevDeletedMessages,
+        messageId,
+      ]);
+
+    } catch (error) {
+      console.error("Error in deleteForMe:", error);
+    }
   };
 
   // Close emoji picker when clicking outside
@@ -787,10 +833,10 @@ export default function ChatAppMerged() {
           }}
         >
 
-          <div className="chat-details">
+          <div className="chat-details" style={{ display: deletedMessages.includes(chat.id) ? "none" : "block", }}>
             <div
               className="message-container"
-              style={{ position: "relative", display: "inline-block" }}
+              style={{ position: "relative", display: "inline-block", }}
             >
               <div
                 className="chat-text"
@@ -800,6 +846,74 @@ export default function ChatAppMerged() {
                 }}
               >
                 {renderTextWithLargeEmojis(chat.text)}
+                <div
+                  className="three-dots-icon"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                    left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "black",
+                  }}
+                  onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+                >
+                  <i className="mdi mdi-dots-vertical" />
+                </div>
+
+                {/* Dropdown Menu */}
+                {openDropdown === index && (
+                  <div
+                    className="dropdown-menu-tribe"
+                    style={{
+                      position: "absolute",
+                      top: "100%",  // Position it just below the text
+                      right: "0",
+                      backgroundColor: "#fff",
+                      boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.2)",
+                      borderRadius: "8px",
+                      zIndex: "10",
+                    }}
+                  >
+                    {/* Delete for Me option */}
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #eee",
+                      }}
+                      onClick={() =>
+                        deleteForMe(chat.id, credentials.userId, credentials.room)  // Call the function for "Delete for Me"
+                      }
+                    >
+                      Delete for Me
+                    </div>
+
+                    {/* Delete for Everyone option with condition */}
+                    {canDelete && (  // Check if the user can delete for everyone
+                      <div
+                        className="dropdown-item"
+                        style={{
+                          padding: "8px 16px",
+                          cursor: "pointer",
+                        }}
+                        onClick={() =>
+                          deleteMessageSocket(
+                            chat.id,                    // messageId
+                            "forEveryone",              // deleteType
+                            credentials.room,           // chatLobbyId
+                            credentials.userId,         // userId
+                            chat.timestamp              // timestamp
+                          )
+                        }
+                      >
+                        Delete for Everyone
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div
@@ -812,23 +926,6 @@ export default function ChatAppMerged() {
             {showSeen && (
               <div style={{ fontSize: "0.7em", color: "#999" }}>
                 {chat.seen ? "Seen" : ""}
-              </div>
-            )}
-            {canDelete && (
-              <div
-                className="message-options"
-                style={{
-                  marginTop: "5px",
-                  padding: "2px",
-                  borderRadius: "4px"
-                }}
-              >
-                <i
-                  className="mdi mdi-delete"
-                  style={{ cursor: "pointer", fontSize: "1.2em" }}
-                  onClick={() => deleteMessageSocket(chat.id, "forEveryone", credentials.room, credentials.userId, chat.timestamp)}
-                  title="Delete for Everyone"
-                ></i>
               </div>
             )}
           </div>
@@ -848,7 +945,8 @@ export default function ChatAppMerged() {
             display: "flex",
             alignItems: "flex-start",
             marginBottom: "10px",
-            flexDirection: chat.from === credentials.name ? "row-reverse" : "row"
+            flexDirection: chat.from === credentials.name ? "row-reverse" : "row",
+            display: deletedMessages.includes(chat.id) ? "none" : "flex",
           }}
         >
 
@@ -885,6 +983,74 @@ export default function ChatAppMerged() {
                   </div>
                 </div>
               )}
+              <div
+                className="three-dots-icon"
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                  left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                  transform: "translateY(-50%)",
+                  cursor: "pointer",
+                  color: "black",
+                }}
+                onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+              >
+                <i className="mdi mdi-dots-vertical" />
+              </div>
+
+              {/* Dropdown Menu */}
+              {openDropdown === index && (
+                <div
+                  className="dropdown-menu-tribe"
+                  style={{
+                    position: "absolute",
+                    top: "100%",  // Position it just below the text
+                    right: "0",
+                    backgroundColor: "#fff",
+                    boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.2)",
+                    borderRadius: "8px",
+                    zIndex: "10",
+                  }}
+                >
+                  {/* Delete for Me option */}
+                  <div
+                    className="dropdown-item"
+                    style={{
+                      padding: "8px 16px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee",
+                    }}
+                    onClick={() =>
+                      deleteForMe(chat.id, credentials.userId, credentials.room)  // Call the function for "Delete for Me"
+                    }
+                  >
+                    Delete for Me
+                  </div>
+
+                  {/* Delete for Everyone option with condition */}
+                  {canDelete && (  // Check if the user can delete for everyone
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() =>
+                        deleteMessageSocket(
+                          chat.id,                    // messageId
+                          "forEveryone",              // deleteType
+                          credentials.room,           // chatLobbyId
+                          credentials.userId,         // userId
+                          chat.timestamp              // timestamp
+                        )
+                      }
+                    >
+                      Delete for Everyone
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div
               className="chat-time"
@@ -905,24 +1071,6 @@ export default function ChatAppMerged() {
                 marginTop: "5px"
               }}
             >
-              {canDelete && (
-                <div
-                  className="message-options"
-                  style={{
-                    display: "flex",
-                    padding: "2px",
-                    borderRadius: "4px",
-                    marginRight: "10px" // space between icons
-                  }}
-                >
-                  <i
-                    className="mdi mdi-delete"
-                    style={{ cursor: "pointer", fontSize: "1.2em" }}
-                    onClick={() => deleteMessageSocket(chat.id, "forEveryone", credentials.room, credentials.userId, chat.timestamp)}
-                    title="Delete for Everyone"
-                  ></i>
-                </div>
-              )}
               <div
                 className="download-icon"
                 style={{

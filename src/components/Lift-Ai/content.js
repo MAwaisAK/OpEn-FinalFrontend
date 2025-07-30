@@ -1,4 +1,3 @@
-// components/MyTribes.jsx
 "use client";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
@@ -10,10 +9,9 @@ const MyTribes = () => {
     {
       sender: "bot",
       text: "Welcome to Lift-AI your Business Analyst assistant. How may I help you?",
+      timestamp: Date.now(),
     },
   ]);
-  const [lastBotMessageTime, setLastBotMessageTime] = useState(null);
-
   const [input, setInput] = useState("");
   const [tokens, setTokens] = useState(0);
   const [userId, setUserId] = useState("");
@@ -29,6 +27,19 @@ const MyTribes = () => {
         setUserId(u.id || u._id);
         setTokens(u.tokens || 0);
         setUserSub(u.subscription || "basic");
+
+        // Fetch messages from localStorage if available
+        const storedMessages = JSON.parse(localStorage.getItem("messages")) || [];
+        const currentTime = Date.now();
+
+        // Filter messages sent within the last hour
+        const filteredMessages = storedMessages.filter(
+          (msg) => currentTime - msg.timestamp <= 3600000
+        );
+
+        setMessages(filteredMessages.length ? filteredMessages : [
+          { sender: "bot", text: "Welcome to Lift-AI your Business Analyst assistant. How may I help you?", timestamp: Date.now() }
+        ]);
       } catch (err) {
         console.error("Error fetching user data:", err);
       }
@@ -40,27 +51,17 @@ const MyTribes = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  {/* useEffect(() => {
-    const resetSession = async () => {
-      try {
-        await axios.post(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/lift-ai/reset-session`, { userId });
-      } catch (err) {
-        console.error("Error resetting session:", err);
-      }
-    };
-
-    // Trigger reset on page load or refresh
-    if (userId) {
-      resetSession();
-    }
-  }, [userId]); */}
-
   const handleSend = async () => {
     if (!input.trim()) return;
     const text = input.trim();
+    const newMessage = {
+      sender: "user",
+      text,
+      timestamp: Date.now(),
+    };
 
     // 1) add user message
-    setMessages((m) => [...m, { sender: "user", text }]);
+    setMessages((m) => [...m, newMessage]);
     setInput("");
 
     // 2) add temporary bot placeholder
@@ -73,24 +74,23 @@ const MyTribes = () => {
         { message: text, userId, userSub }
       );
 
-      // try to extract download URL
+      // Try to extract download URL if available
       let downloadUrl = data.downloadUrl;
       if (!downloadUrl && data.reply) {
         try {
           const parsed = JSON.parse(data.reply);
           if (parsed.downloadUrl) downloadUrl = parsed.downloadUrl;
-        } catch { }
+        } catch {}
       }
 
-          const timestamp = new Date().toISOString();
-    setLastBotMessageTime(timestamp);
+      // Replace the "Thinking…" placeholder with either a download link or reply text
+      const botMessage = downloadUrl
+        ? { sender: "bot", downloadUrl, timestamp: Date.now() }
+        : { sender: "bot", text: data.reply, timestamp: Date.now() };
 
-      // replace the "Thinking…" placeholder with either a download link or reply text
       setMessages((m) => {
         const copy = [...m];
-        copy[copy.length - 1] = downloadUrl
-          ? { sender: "bot", downloadUrl }
-          : { sender: "bot", text: data.reply };
+        copy[copy.length - 1] = botMessage;
         return copy;
       });
 
@@ -101,8 +101,13 @@ const MyTribes = () => {
       } catch (err) {
         console.error("Error refreshing tokens:", err);
       }
+
+      // Save the bot's message and timestamp to localStorage (messages array)
+      const updatedMessages = [...messages, newMessage, botMessage];
+      localStorage.setItem("messages", JSON.stringify(updatedMessages));
+
     } catch (e) {
-      // on error, replace placeholder with error message
+      // On error, replace placeholder with error message
       setMessages((m) => {
         const copy = [...m];
         copy[copy.length - 1] = {
@@ -169,16 +174,6 @@ const MyTribes = () => {
       <div id="chat" className="--dark-theme chat-container">
         <div className="chat__conversation-board">
           {messages.map((msg, idx) => {
-                const isBotMessage = msg.sender === "bot";
-    // Get the timestamp of the last bot message
-    const messageTime = new Date(lastBotMessageTime);
-    const currentTime = new Date();
-    const timeDiff = (currentTime - messageTime) / (1000 * 60 * 60); // Difference in hours
-
-    // If more than an hour has passed, exclude this message
-    if (isBotMessage && timeDiff > 1 && msg.text !== "Welcome to Lift-AI your Business Analyst assistant. How may I help you?") {
-      return null; // Do not display
-    }
             const inlineMatch =
               typeof msg.text === "string" &&
               msg.text.match(

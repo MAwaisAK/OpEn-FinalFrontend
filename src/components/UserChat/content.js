@@ -439,7 +439,7 @@ export default function ChatAppMerged() {
 
   // Socket.IO connection and event handlers.
   useEffect(() => {
-    if (authUser && credentials.room) {
+    if (authUser) {
       const socketConnection = io(SOCKET_ENDPOINT, { query: credentials });
       setSocket(socketConnection);
 

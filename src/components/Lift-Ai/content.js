@@ -12,6 +12,8 @@ const MyTribes = () => {
       text: "Welcome to Lift-AI your Business Analyst assistant. How may I help you?",
     },
   ]);
+  const [lastBotMessageTime, setLastBotMessageTime] = useState(null);
+
   const [input, setInput] = useState("");
   const [tokens, setTokens] = useState(0);
   const [userId, setUserId] = useState("");
@@ -38,7 +40,7 @@ const MyTribes = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
+  {/* useEffect(() => {
     const resetSession = async () => {
       try {
         await axios.post(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/lift-ai/reset-session`, { userId });
@@ -51,7 +53,7 @@ const MyTribes = () => {
     if (userId) {
       resetSession();
     }
-  }, [userId]);
+  }, [userId]); */}
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -79,6 +81,9 @@ const MyTribes = () => {
           if (parsed.downloadUrl) downloadUrl = parsed.downloadUrl;
         } catch { }
       }
+
+          const timestamp = new Date().toISOString();
+    setLastBotMessageTime(timestamp);
 
       // replace the "Thinking…" placeholder with either a download link or reply text
       setMessages((m) => {
@@ -164,6 +169,16 @@ const MyTribes = () => {
       <div id="chat" className="--dark-theme chat-container">
         <div className="chat__conversation-board">
           {messages.map((msg, idx) => {
+                const isBotMessage = msg.sender === "bot";
+    // Get the timestamp of the last bot message
+    const messageTime = new Date(lastBotMessageTime);
+    const currentTime = new Date();
+    const timeDiff = (currentTime - messageTime) / (1000 * 60 * 60); // Difference in hours
+
+    // If more than an hour has passed, exclude this message
+    if (isBotMessage && timeDiff > 1 && msg.text !== "Welcome to Lift-AI your Business Analyst assistant. How may I help you?") {
+      return null; // Do not display
+    }
             const inlineMatch =
               typeof msg.text === "string" &&
               msg.text.match(

@@ -246,10 +246,6 @@ const MyTribes = () => {
       {user ? user.bio : "Passionate about photography and exploring new places."}
     </p>
     <p>
-      <strong>Phone:</strong>{" "}
-      {user && user.phone ? user.phone.join(", ") : "+1 234 567 890"}
-    </p>
-    <p>
       <strong>Primary Business:</strong>{" "}
       {user && user.primary_business ? user.primary_business : "Not Provided"}
     </p>

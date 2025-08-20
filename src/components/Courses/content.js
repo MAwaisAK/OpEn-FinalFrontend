@@ -276,8 +276,8 @@ const MyTribes = () => {
             );
 
             return (
-              <div key={course._id} className="col-md-4 mb-4">
-                <div className="profile-card-tool minimal">
+              <div key={course._id} className="col-md-4 d-flex justify-content-center mb-4">
+                <div className="profile-card-tool minimal course-card">
                   <div className="card-header">
                     <div className="profile-img">
                       <img
@@ -320,6 +320,18 @@ const MyTribes = () => {
               </div>
             );
           })}
+          {Array.from({ length: Math.max(0, 3 - currentCourses.length) }).map(
+            (_, idx) => (
+              <div key={`placeholder-${idx}`} className="col-md-4 d-flex justify-content-center mb-4">
+                <div
+                  className="profile-card-tool minimal course-card"
+                  style={{ visibility: "hidden" }}
+                >
+                  {/* Empty card just to take up space */}
+                </div>
+              </div>
+            )
+          )}
         </div>
       </div>
 
@@ -338,9 +350,8 @@ const MyTribes = () => {
             <button
               key={number}
               type="button"
-              className={`btn btn-primary btn-pagination ${
-                currentPage === number ? "active" : ""
-              }`}
+              className={`btn btn-primary btn-pagination ${currentPage === number ? "active" : ""
+                }`}
               onClick={() => handlePageChange(number)}
             >
               {number}

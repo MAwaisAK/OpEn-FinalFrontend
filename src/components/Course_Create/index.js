@@ -73,22 +73,46 @@ const CreateCourse = () => {
   const [thumbnail, setThumbnail] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
 
-  // Dynamic file inputs (up to 5); initialize with one empty entry.
-  const [files, setFiles] = useState([null]);
+  // ------------------------------------------------------------
+  // LESSON-BASED STATES (matching your updated model)
+  // each entry is an object: { lesson: [Number], content: [ ... ] }
+  // files.content holds File objects (or null) and limited to 5 per lesson
+  // other content arrays hold strings (links)
+  // ------------------------------------------------------------
+  const [files, setFiles] = useState([{ lesson: [1], content: [null] }]);
+  const [videosLinks, setVideoLinks] = useState([{ lesson: [1], content: [""] }]);
+  const [assessmentLinks, setAssessmentLinks] = useState([{ lesson: [1], content: [""] }]);
+  const [externalLinks, setExternalLinks] = useState([{ lesson: [1], content: [""] }]);
+  const [referenceLinks, setReferenceLinks] = useState([{ lesson: [1], content: [""] }]);
 
-  // Dynamic arrays for links.
-  const [externalLinks, setExternalLinks] = useState([""]);
-  const [referenceLinks, setReferenceLinks] = useState([""]);
-  const [assessmentLinks, setAssessmentLinks] = useState([""]);
-  const [videosLinks, setVideoLinks] = useState([""]);
+  // ------------------------------------------------------------
+  // Generic helpers to add a new lesson across all resource arrays
+  // ------------------------------------------------------------
+  const addLesson = () => {
+    // determine next lesson number by looking at files length (safe: all arrays kept in sync)
+    const next = Math.max(
+      files.length,
+      videosLinks.length,
+      assessmentLinks.length,
+      externalLinks.length,
+      referenceLinks.length
+    ) + 1;
 
-  // Handle basic text input changes.
+    setFiles((prev) => [...prev, { lesson: [next], content: [null] }]);
+    setVideoLinks((prev) => [...prev, { lesson: [next], content: [""] }]);
+    setAssessmentLinks((prev) => [...prev, { lesson: [next], content: [""] }]);
+    setExternalLinks((prev) => [...prev, { lesson: [next], content: [""] }]);
+    setReferenceLinks((prev) => [...prev, { lesson: [next], content: [""] }]);
+  };
+
+  // ------------------------------------------------------------
+  // Basic form handlers (unchanged)
+  // ------------------------------------------------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // When a thumbnail is chosen, update state and generate a preview URL.
   const handleThumbnailChange = (e) => {
     const file = e.target.files[0];
     setThumbnail(file);
@@ -97,105 +121,109 @@ const CreateCourse = () => {
     }
   };
 
-  // Handle change for an individual file input.
-  const handleIndividualFileChange = (index, e) => {
-    const file = e.target.files[0];
-    setFiles((prevFiles) => {
-      const newFiles = [...prevFiles];
-      newFiles[index] = file;
-      return newFiles;
+  // ------------------------------------------------------------
+  // FILES (per-lesson, up to 5 files per lesson)
+  // ------------------------------------------------------------
+  // change a file for a given lessonIndex and fileIndex
+  const handleLessonFileChange = (lessonIndex, fileIndex, e) => {
+    const file = e.target.files[0] ?? null;
+    setFiles((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev)); // deep copy
+      // ensure content array exists
+      copy[lessonIndex].content = copy[lessonIndex].content || [];
+      copy[lessonIndex].content[fileIndex] = file;
+      return copy;
     });
   };
 
-  // Add a new file input (up to 5 total).
-  const addFileInput = () => {
-    if (files.length < 5) {
-      setFiles((prevFiles) => [...prevFiles, null]);
-    }
-  };
-
-  // Remove a file input.
-  const removeFileInput = (index) => {
-    setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
-  };
-
-  // Handlers for rich text editor fields.
-  const handleDescriptionChange = (content) => {
-    setFormData((prev) => ({ ...prev, description: content }));
-  };
-
-  const handleCourseContentChange = (content) => {
-    setFormData((prev) => ({ ...prev, courseContent: content }));
-  };
-
-  // Dynamic External Links handlers.
-  const handleExternalLinkChange = (index, value) => {
-    setExternalLinks((prev) => {
-      const newLinks = [...prev];
-      newLinks[index] = value;
-      return newLinks;
+  // add a new file slot in a lesson (max 5)
+  const addFileToLesson = (lessonIndex) => {
+    setFiles((prev) => {
+      const copy = [...prev];
+      const contentArr = copy[lessonIndex].content || [];
+      if (contentArr.length >= 5) return prev; // enforce 5 per lesson
+      contentArr.push(null);
+      copy[lessonIndex].content = contentArr;
+      return copy;
     });
   };
 
-  const addExternalLink = () => {
-    setExternalLinks((prev) => [...prev, ""]);
-  };
-
-  const removeExternalLink = (index) => {
-    setExternalLinks((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleVideoLinkChange = (index, value) => {
-    setVideoLinks((prev) => {
-      const newLinks = [...prev];
-      newLinks[index] = value;
-      return newLinks;
+  // remove file slot from a lesson
+  const removeFileFromLesson = (lessonIndex, fileIndex) => {
+    setFiles((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[lessonIndex].content = (copy[lessonIndex].content || []).filter(
+        (_, i) => i !== fileIndex
+      );
+      return copy;
     });
   };
 
-  const addVideoLink = () => {
-    setVideoLinks((prev) => [...prev, ""]);
-  };
-
-  const removeVideoLink = (index) => {
-    setVideoLinks((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Dynamic Reference Links handlers.
-  const handleReferenceLinkChange = (index, value) => {
-    setReferenceLinks((prev) => {
-      const newLinks = [...prev];
-      newLinks[index] = value;
-      return newLinks;
+  // ------------------------------------------------------------
+  // LINKS (videos, external, reference, assessment) per lesson
+  // each lesson's content is an array of strings (can add multiple)
+  // ------------------------------------------------------------
+  // Generic function for updating string-list content inside lesson-based arrays
+  const handleLessonStringChange = (setter, stateArr, lessonIndex, contentIndex, value) => {
+    setter((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[lessonIndex].content = copy[lessonIndex].content || [];
+      copy[lessonIndex].content[contentIndex] = value;
+      return copy;
     });
   };
 
-  const addReferenceLink = () => {
-    setReferenceLinks((prev) => [...prev, ""]);
-  };
-
-  const removeReferenceLink = (index) => {
-    setReferenceLinks((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Dynamic Assessment Links handlers.
-  const handleAssessmentLinkChange = (index, value) => {
-    setAssessmentLinks((prev) => {
-      const newLinks = [...prev];
-      newLinks[index] = value;
-      return newLinks;
+  const addStringToLesson = (setter, stateArr, lessonIndex) => {
+    setter((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[lessonIndex].content = copy[lessonIndex].content || [];
+      copy[lessonIndex].content.push("");
+      return copy;
     });
   };
 
-  const addAssessmentLink = () => {
-    setAssessmentLinks((prev) => [...prev, ""]);
+  const removeStringFromLesson = (setter, stateArr, lessonIndex, contentIndex) => {
+    setter((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[lessonIndex].content = (copy[lessonIndex].content || []).filter(
+        (_, i) => i !== contentIndex
+      );
+      return copy;
+    });
   };
 
-  const removeAssessmentLink = (index) => {
-    setAssessmentLinks((prev) => prev.filter((_, i) => i !== index));
-  };
+  // These wrappers keep previous function names for consistency with your code
+  const handleExternalLinkChange = (lessonIndex, contentIndex, value) =>
+    handleLessonStringChange(setExternalLinks, externalLinks, lessonIndex, contentIndex, value);
+  const addExternalLink = (lessonIndex) =>
+    addStringToLesson(setExternalLinks, externalLinks, lessonIndex);
+  const removeExternalLink = (lessonIndex, contentIndex) =>
+    removeStringFromLesson(setExternalLinks, externalLinks, lessonIndex, contentIndex);
 
-  // Helper function to inject inline styles for tables.
+  const handleVideoLinkChange = (lessonIndex, contentIndex, value) =>
+    handleLessonStringChange(setVideoLinks, videosLinks, lessonIndex, contentIndex, value);
+  const addVideoLink = (lessonIndex) =>
+    addStringToLesson(setVideoLinks, videosLinks, lessonIndex);
+  const removeVideoLink = (lessonIndex, contentIndex) =>
+    removeStringFromLesson(setVideoLinks, videosLinks, lessonIndex, contentIndex);
+
+  const handleReferenceLinkChange = (lessonIndex, contentIndex, value) =>
+    handleLessonStringChange(setReferenceLinks, referenceLinks, lessonIndex, contentIndex, value);
+  const addReferenceLink = (lessonIndex) =>
+    addStringToLesson(setReferenceLinks, referenceLinks, lessonIndex);
+  const removeReferenceLink = (lessonIndex, contentIndex) =>
+    removeStringFromLesson(setReferenceLinks, referenceLinks, lessonIndex, contentIndex);
+
+  const handleAssessmentLinkChange = (lessonIndex, contentIndex, value) =>
+    handleLessonStringChange(setAssessmentLinks, assessmentLinks, lessonIndex, contentIndex, value);
+  const addAssessmentLink = (lessonIndex) =>
+    addStringToLesson(setAssessmentLinks, assessmentLinks, lessonIndex);
+  const removeAssessmentLink = (lessonIndex, contentIndex) =>
+    removeStringFromLesson(setAssessmentLinks, assessmentLinks, lessonIndex, contentIndex);
+
+  // ------------------------------------------------------------
+  // Helper function to inject inline table borders (unchanged)
+  // ------------------------------------------------------------
   const injectTableBorders = (htmlString) => {
     if (!htmlString) return htmlString;
     const container = document.createElement("div");
@@ -214,17 +242,18 @@ const CreateCourse = () => {
     return container.innerHTML;
   };
 
-  // On form submission, pack data into a FormData object.
+  // ------------------------------------------------------------
+  // On form submit: collect files + meta + JSON for other arrays
+  // ------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Inject inline table styles into description and courseContent.
     const updatedDescription = injectTableBorders(formData.description);
     const updatedCourseContent = injectTableBorders(formData.courseContent);
 
     const data = new FormData();
 
-    // Append basic text fields with the updated HTML content.
+    // Basic text fields
     data.append("title", formData.title);
     data.append("Author", formData.Author);
     data.append("AuthorLink", formData.AuthorLink);
@@ -234,35 +263,37 @@ const CreateCourse = () => {
     data.append("description", updatedDescription);
     data.append("courseContent", updatedCourseContent);
 
-    // Append the thumbnail.
+    // Thumbnail
     if (thumbnail) {
       data.append("thumbnail", thumbnail);
     }
 
-    // Append each file from the dynamic file inputs.
-    files.forEach((file) => {
-      if (file) {
-        data.append("files", file);
-      }
+    // Files: append actual files to FormData and build a small meta array mapping filenames -> lesson
+    const filesMeta = []; // [{ lesson: [n], filename: "x.pdf" }, ...]
+    files.forEach((lessonObj) => {
+      const lessonNums = lessonObj.lesson || [];
+      (lessonObj.content || []).forEach((file) => {
+        if (file instanceof File) {
+          data.append("files", file); // backend receives all files under "files"
+          filesMeta.push({
+            lesson: lessonNums,
+            filename: file.name,
+          });
+        }
+      });
     });
+    // Append files meta so backend can map uploaded files to lesson numbers
+    data.append("filesMeta", JSON.stringify(filesMeta));
 
-    // Append links as JSON strings.
-    data.append(
-      "externalLinks",
-      JSON.stringify(externalLinks.filter((link) => link.trim() !== ""))
-    );
-    data.append(
-      "videosLinks",
-      JSON.stringify(videosLinks.filter((link) => link.trim() !== ""))
-    );
-    data.append(
-      "referenceLinks",
-      JSON.stringify(referenceLinks.filter((link) => link.trim() !== ""))
-    );
-    data.append(
-      "assessmentLinks",
-      JSON.stringify(assessmentLinks.filter((link) => link.trim() !== ""))
-    );
+    // Append other lesson-based resources as JSON
+    data.append("videosLinks", JSON.stringify(videosLinks));
+    data.append("externalLinks", JSON.stringify(externalLinks));
+    data.append("referenceLinks", JSON.stringify(referenceLinks));
+    data.append("assessmentLinks", JSON.stringify(assessmentLinks));
+    data.append("filesLessonsShape", JSON.stringify(
+      // If you want to also send the structure of files (lessons + placeholders) as JSON
+      files.map(f => ({ lesson: f.lesson, contentNames: (f.content || []).map(c => (c instanceof File ? c.name : null)) }))
+    ));
 
     try {
       await axios.post(`${process.env.NEXT_PUBLIC_BASE_ENDPOINT}/course`, data, {
@@ -275,10 +306,14 @@ const CreateCourse = () => {
       alert("Error creating course.");
     }
   };
+
   if (loading2) {
     return <div className="p-4">Loading...</div>;
   }
 
+  // ------------------------------------------------------------
+  // Render: keep everything as-is but replace the resource UIs with per-lesson UIs
+  // ------------------------------------------------------------
   return (
     <>
       <Resources />
@@ -418,7 +453,7 @@ const CreateCourse = () => {
                               Description
                             </label>
                             <div className="col-sm-12 col-md-7">
-                              <TextEditor onChange={handleDescriptionChange} />
+                              <TextEditor onChange={(val) => setFormData(prev => ({ ...prev, description: val }))} />
                             </div>
                           </div>
 
@@ -428,7 +463,7 @@ const CreateCourse = () => {
                               Course Content
                             </label>
                             <div className="col-sm-12 col-md-7">
-                              <TextEditor onChange={handleCourseContentChange} />
+                              <TextEditor onChange={(val) => setFormData(prev => ({ ...prev, courseContent: val }))} />
                             </div>
                           </div>
 
@@ -460,168 +495,182 @@ const CreateCourse = () => {
                             </div>
                           </div>
 
-                          {/* Files */}
-                          <div className="form-group row mb-4">
-                            <label className="col-form-label text-md-right col-12 col-md-3 col-lg-3">
-                              Files (up to 5)
-                            </label>
-                            <div className="col-sm-12 col-md-7">
-                              {files.map((file, index) => (
-                                <div key={index} style={{ marginBottom: "10px" }}>
-                                  <input
-                                    type="file"
-                                    onChange={(e) => handleIndividualFileChange(index, e)}
-                                  />
-                                  {files.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeFileInput(index)}
-                                      style={{ marginLeft: "10px" }}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                              {files.length < 5 && (
-                                <button type="button" onClick={addFileInput}>
-                                  Add File
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                          {/* -------------------------
+                              LESSON-BASED RESOURCE RENDERING
+                              ------------------------- */}
+                          <div className="mb-4">
+                            <h5>Lessons & Resources</h5>
+                            <p className="text-muted">Add lessons using the button below. Each lesson contains files (max 5) and multiple link entries per resource type.</p>
 
-                          <div className="form-group row mb-4">
-                            <label className="col-form-label text-md-right col-12 col-md-3 col-lg-3">
-                              Video Links
-                            </label>
-                            <div className="col-sm-12 col-md-7">
-                              {videosLinks.map((link, index) => (
-                                <div key={index} style={{ marginBottom: "10px" }}>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    value={link}
-                                    onChange={(e) =>
-                                      handleVideoLinkChange(index, e.target.value)
-                                    }
-                                    placeholder="Enter Video link"
-                                  />
-                                  {videosLinks.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeVideoLink(index)}
-                                      style={{ marginLeft: "10px" }}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                              <button type="button" onClick={addVideoLink}>
-                                Add Video Link
-                              </button>
-                            </div>
-                          </div>
+                            {files.map((lessonObj, lessonIndex) => {
+                              const lessonNumber = (lessonObj.lesson && lessonObj.lesson[0]) || lessonIndex + 1;
+                              return (
+                                <div key={lessonIndex} className="card mb-3">
+                                  <div className="card-body">
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                      <strong>Lesson {lessonNumber}</strong>
+                                    </div>
 
-                          {/* External Links */}
-                          <div className="form-group row mb-4">
-                            <label className="col-form-label text-md-right col-12 col-md-3 col-lg-3">
-                              External Links
-                            </label>
-                            <div className="col-sm-12 col-md-7">
-                              {externalLinks.map((link, index) => (
-                                <div key={index} style={{ marginBottom: "10px" }}>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    value={link}
-                                    onChange={(e) =>
-                                      handleExternalLinkChange(index, e.target.value)
-                                    }
-                                    placeholder="Enter external link"
-                                  />
-                                  {externalLinks.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeExternalLink(index)}
-                                      style={{ marginLeft: "10px" }}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                              <button type="button" onClick={addExternalLink}>
-                                Add External Link
-                              </button>
-                            </div>
-                          </div>
+                                    {/* Files per lesson */}
+                                    <div className="mb-3">
+                                      <label className="form-label">Files (max 5 for this lesson)</label>
+                                      {(lessonObj.content || []).map((f, fi) => (
+                                        <div key={fi} className="d-flex align-items-center mb-2">
+                                          <input
+                                            type="file"
+                                            onChange={(e) => handleLessonFileChange(lessonIndex, fi, e)}
+                                          />
+                                          {(lessonObj.content || []).length > 1 && (
+                                            <button
+                                              type="button"
+                                              className="btn btn-danger btn-sm ms-2"
+                                              onClick={() => removeFileFromLesson(lessonIndex, fi)}
+                                            >
+                                              Remove
+                                            </button>
+                                          )}
+                                          {/* show filename if present */}
+                                          {f instanceof File && (
+                                            <span style={{ marginLeft: 8 }}>{f.name}</span>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <div>
+                                        <button
+                                          type="button"
+                                          className="btn btn-secondary btn-sm"
+                                          onClick={() => addFileToLesson(lessonIndex)}
+                                          disabled={((files[lessonIndex].content || []).length >= 5)}
+                                        >
+                                          Add File to Lesson {lessonNumber}
+                                        </button>
+                                        <small className="text-muted ms-2">
+                                          {((files[lessonIndex].content || []).length)}/5 used
+                                        </small>
+                                      </div>
+                                    </div>
 
-                          {/* Reference Links */}
-                          <div className="form-group row mb-4">
-                            <label className="col-form-label text-md-right col-12 col-md-3 col-lg-3">
-                              Reference Links
-                            </label>
-                            <div className="col-sm-12 col-md-7">
-                              {referenceLinks.map((link, index) => (
-                                <div key={index} style={{ marginBottom: "10px" }}>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    value={link}
-                                    onChange={(e) =>
-                                      handleReferenceLinkChange(index, e.target.value)
-                                    }
-                                    placeholder="Enter reference link"
-                                  />
-                                  {referenceLinks.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeReferenceLink(index)}
-                                      style={{ marginLeft: "10px" }}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                              <button type="button" onClick={addReferenceLink}>
-                                Add Reference Link
-                              </button>
-                            </div>
-                          </div>
+                                    {/* Video Links per lesson */}
+                                    <div className="mb-3">
+                                      <label className="form-label">Video Links</label>
+                                      {(videosLinks[lessonIndex]?.content || []).map((link, li) => (
+                                        <div key={li} className="d-flex align-items-center mb-2">
+                                          <input
+                                            type="text"
+                                            className="form-control"
+                                            value={link}
+                                            onChange={(e) => handleVideoLinkChange(lessonIndex, li, e.target.value)}
+                                            placeholder="Enter Video link"
+                                          />
+                                          {(videosLinks[lessonIndex].content || []).length > 1 && (
+                                            <button
+                                              type="button"
+                                              className="btn btn-danger btn-sm ms-2"
+                                              onClick={() => removeVideoLink(lessonIndex, li)}
+                                            >
+                                              Remove
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => addVideoLink(lessonIndex)}>
+                                        Add Video Link
+                                      </button>
+                                    </div>
 
-                          {/* Assessment Links */}
-                          <div className="form-group row mb-4">
-                            <label className="col-form-label text-md-right col-12 col-md-3 col-lg-3">
-                              Assessment Links
-                            </label>
-                            <div className="col-sm-12 col-md-7">
-                              {assessmentLinks.map((link, index) => (
-                                <div key={index} style={{ marginBottom: "10px" }}>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    value={link}
-                                    onChange={(e) =>
-                                      handleAssessmentLinkChange(index, e.target.value)
-                                    }
-                                    placeholder="Enter assessment link"
-                                  />
-                                  {assessmentLinks.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeAssessmentLink(index)}
-                                      style={{ marginLeft: "10px" }}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
+                                    {/* External Links per lesson */}
+                                    <div className="mb-3">
+                                      <label className="form-label">External Links</label>
+                                      {(externalLinks[lessonIndex]?.content || []).map((link, li) => (
+                                        <div key={li} className="d-flex align-items-center mb-2">
+                                          <input
+                                            type="text"
+                                            className="form-control"
+                                            value={link}
+                                            onChange={(e) => handleExternalLinkChange(lessonIndex, li, e.target.value)}
+                                            placeholder="Enter external link"
+                                          />
+                                          {(externalLinks[lessonIndex].content || []).length > 1 && (
+                                            <button
+                                              type="button"
+                                              className="btn btn-danger btn-sm ms-2"
+                                              onClick={() => removeExternalLink(lessonIndex, li)}
+                                            >
+                                              Remove
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => addExternalLink(lessonIndex)}>
+                                        Add External Link
+                                      </button>
+                                    </div>
+
+                                    {/* Reference Links per lesson */}
+                                    <div className="mb-3">
+                                      <label className="form-label">Reference Links</label>
+                                      {(referenceLinks[lessonIndex]?.content || []).map((link, li) => (
+                                        <div key={li} className="d-flex align-items-center mb-2">
+                                          <input
+                                            type="text"
+                                            className="form-control"
+                                            value={link}
+                                            onChange={(e) => handleReferenceLinkChange(lessonIndex, li, e.target.value)}
+                                            placeholder="Enter reference link"
+                                          />
+                                          {(referenceLinks[lessonIndex].content || []).length > 1 && (
+                                            <button
+                                              type="button"
+                                              className="btn btn-danger btn-sm ms-2"
+                                              onClick={() => removeReferenceLink(lessonIndex, li)}
+                                            >
+                                              Remove
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => addReferenceLink(lessonIndex)}>
+                                        Add Reference Link
+                                      </button>
+                                    </div>
+
+                                    {/* Assessment Links per lesson */}
+                                    <div className="mb-3">
+                                      <label className="form-label">Assessment Links</label>
+                                      {(assessmentLinks[lessonIndex]?.content || []).map((link, li) => (
+                                        <div key={li} className="d-flex align-items-center mb-2">
+                                          <input
+                                            type="text"
+                                            className="form-control"
+                                            value={link}
+                                            onChange={(e) => handleAssessmentLinkChange(lessonIndex, li, e.target.value)}
+                                            placeholder="Enter assessment link"
+                                          />
+                                          {(assessmentLinks[lessonIndex].content || []).length > 1 && (
+                                            <button
+                                              type="button"
+                                              className="btn btn-danger btn-sm ms-2"
+                                              onClick={() => removeAssessmentLink(lessonIndex, li)}
+                                            >
+                                              Remove
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                      <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => addAssessmentLink(lessonIndex)}>
+                                        Add Assessment Link
+                                      </button>
+                                    </div>
+
+                                  </div>
                                 </div>
-                              ))}
-                              <button type="button" onClick={addAssessmentLink}>
-                                Add Assessment Link
+                              );
+                            })}
+
+                            {/* Add Lesson Button (placed before submit) */}
+                            <div className="mb-3">
+                              <button type="button" className="btn btn-primary" onClick={addLesson}>
+                                Add Lesson
                               </button>
                             </div>
                           </div>

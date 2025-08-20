@@ -258,8 +258,8 @@ const MyTribes = () => {
       <div className="container p-4">
         <div className="row">
           {currentCourses.map((course) => (
-            <div key={course._id} className="col-md-4 mb-4">
-              <div className="profile-card-tool minimal">
+            <div key={course._id} className="col-md-4 d-flex justify-content-center mb-4">
+              <div className="profile-card-tool minimal course-card">
                 <div className="card-header">
                   <div className="profile-img">
                     <img
@@ -289,6 +289,18 @@ const MyTribes = () => {
               </div>
             </div>
           ))}
+          {Array.from({ length: Math.max(0, 3 - currentCourses.length) }).map(
+            (_, idx) => (
+              <div key={`placeholder-${idx}`} className="col-md-4 d-flex justify-content-center mb-4">
+                <div
+                  className="profile-card-tool minimal course-card"
+                  style={{ visibility: "hidden" }}
+                >
+                  {/* Empty card just to take up space */}
+                </div>
+              </div>
+            )
+          )}
         </div>
       </div>
 

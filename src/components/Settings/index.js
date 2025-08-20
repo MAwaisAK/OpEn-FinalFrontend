@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../AdminSideBar";
 import Navbar from "../Nav";
@@ -21,6 +22,10 @@ const MyTribes = () => {
   const [otherBusiness, setOtherBusiness] = useState("");
   const [emailVisible, setEmailVisible] = useState(true);
   const [selectedIndustries, setSelectedIndustries] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [banner, setBannerPreview] = useState(null);
+  const [removeprofile, setRemoveProfile] = useState(false);
+  const [removebanner, setRemoveBanner] = useState(false);
   const [customIndustry, setCustomIndustry] = useState("");
   const [selectedValueChain, setSelectedValueChain] = useState([]);
   const [customValueChain, setCustomValueChain] = useState("");
@@ -106,6 +111,7 @@ const MyTribes = () => {
     }
   };
 
+
   const continents = [
     { value: "North America", label: "North America" },
     { value: "South America", label: "South America" },
@@ -133,7 +139,19 @@ const MyTribes = () => {
     instagram_link: "",
     x_link: "",
     web_link: "",
+    profile_pic: "",
+    display_banner: "",
   });
+
+  const handleRemove = (type) => {
+    if (type === "profile") {
+      setPreview(null);
+      setUserData((prev) => ({ ...prev, profile_pic: null }));
+    } else if (type === "banner") {
+      setBannerPreview(null);
+      setUserData((prev) => ({ ...prev, display_banner: null }));
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -144,7 +162,7 @@ const MyTribes = () => {
         lastName: user.lastName || "",
         email: user.email,
         username: user.username || "",
-        aboutme: user.bio || "",
+        aboutme: user.aboutme || "",
         primary_business: user.primary_business || "",
         country: user.country || "",
         business_industry: user.business_industry || [],
@@ -156,6 +174,8 @@ const MyTribes = () => {
         instagram_link: user.instagram_link || "",
         x_link: user.x_link || "",
         web_link: user.web_link || "",
+        profile_pic: user.profile_pic || "",
+        display_banner: user.display_banner || "",
       });
     }
   }, [user]); // Runs when `user` changes
@@ -163,14 +183,25 @@ const MyTribes = () => {
   // Handle input change
   const handleChange = (e) => {
     const { name, value, files } = e.target;
+
     if (files && files.length > 0) {
-      // File input: store the File object
+      // Handle file input
+      const objectUrl = URL.createObjectURL(files[0]);
+
+      if (name === "profile_pic") {
+        setPreview(objectUrl);
+      } else if (name === "banner_image") {
+        setBannerPreview(objectUrl);
+      }
+
+      // Store the file object in state
       setUserData((prev) => ({ ...prev, [name]: files[0] }));
     } else {
-      // Text or other input: update normally
+      // Handle normal text input
       setUserData((prev) => ({ ...prev, [name]: value }));
     }
   };
+
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -579,18 +610,6 @@ const MyTribes = () => {
                             />
                           </div>
 
-                          <div className="form-group">
-                            <label htmlFor="lastName">Last Name</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              id="lastName"
-                              name="lastName"
-                              placeholder="Enter your last name"
-                              value={userData.lastName}
-                              onChange={handleChange}
-                            />
-                          </div>
                           <div className="form-group row align-items-center">
                             <label htmlFor="email" className="col-sm-2 col-form-label">
                               Email
@@ -651,6 +670,35 @@ const MyTribes = () => {
                               accept="image/*"
                               onChange={handleChange}
                             />
+                            {preview || userData.profile_pic ? (
+                              <div style={{ marginTop: "10px" }}>
+                                <img
+                                  src={preview || userData.profile_pic}
+                                  alt="Profile Preview"
+                                  style={{
+                                    width: "100px",
+                                    height: "100px",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemove("profile")}
+                                  style={{
+                                    display: "block",
+                                    marginTop: "5px",
+                                    background: "red",
+                                    color: "white",
+                                    border: "none",
+                                    padding: "5px 10px",
+                                    borderRadius: "5px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
 
                           {/* Banner Image */}
@@ -664,6 +712,34 @@ const MyTribes = () => {
                               accept="image/*"
                               onChange={handleChange}
                             />
+                            {banner || userData.display_banner ? (
+                              <div style={{ marginTop: "10px" }}>
+                                <img
+                                  src={banner || userData.display_banner}
+                                  alt="Banner Preview"
+                                  style={{
+                                    width: "300px",
+                                    height: "200px",
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemove("banner")}
+                                  style={{
+                                    display: "block",
+                                    marginTop: "5px",
+                                    background: "red",
+                                    color: "white",
+                                    border: "none",
+                                    padding: "5px 10px",
+                                    borderRadius: "5px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
 
                           {/* Business Link */}

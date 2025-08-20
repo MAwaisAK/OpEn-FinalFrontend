@@ -292,3 +292,15 @@
   transform: scale(1.1);
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Center align + spacing for course cards */
+.course-card {
+  margin-top: 0; /* reset for desktop */
+}
+
+/* Mobile adjustments */
+@media (max-width: 767px) {
+  .course-card {
+    margin-top: 50px;
+  }
+}

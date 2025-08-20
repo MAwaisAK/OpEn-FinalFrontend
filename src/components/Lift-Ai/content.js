@@ -159,11 +159,11 @@ const MyTribes = () => {
             alt="Tokens Icon"
             className="tokens-icon"
           />
-          <span style={{ color: tokens < 500 ? "red" : "inherit" }}>
+          <span style={{ color: tokens < 10000 ? "red" : "inherit" }}>
             <b>{tokens}</b>
           </span>
         </a>
-        {tokens < 500 && (
+        {tokens < 10000 && (
           <p className="low-token-warning">
             ⚠️ Low tokens! <a href="/profile/buy-tokens">Buy more</a> to
             continue using Lift-AI.

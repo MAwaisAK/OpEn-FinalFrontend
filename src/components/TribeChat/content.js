@@ -76,7 +76,30 @@ export default function ChatAppMerged() {
   const [hasMore, setHasMore] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const fileInputRef = useRef(null);
+  const [caption, setCaption] = useState("");
+  const [reply_image, setReplyImage] = useState(false);
+  const [reply_video, setReplyVideo] = useState(false);
+  const [reply_file, setReplyFile] = useState(false);
+  const handleCaptionChange = (event) => {
+    setCaption(event.target.value); // Update the caption state
+  };
 
+  const handleReplyPreview = (replyUrl) => {
+    const isReplyImg = /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(replyUrl);
+    const isReplyVid = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(replyUrl);
+    const isReplyFile = !isReplyImg && !isReplyVid && replyUrl;
+
+    setReplyImage(isReplyImg);
+    setReplyVideo(isReplyVid);
+    setReplyFile(isReplyFile);
+  };
+
+  const handleReplyPreviewOff = () => {
+
+    setReplyImage(null);
+    setReplyVideo(null);
+    setReplyFile(null);
+  };
   const params = useParams();
   const tribeId = params?.id; // Get tribe ID from route params
   const [filePreviewUrl, setFilePreviewUrl] = useState(null);
@@ -85,6 +108,92 @@ export default function ChatAppMerged() {
   const emojiPickerRef = useRef(null);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [deletedMessages, setDeletedMessages] = useState([]);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editedText, setEditedText] = useState('');
+  const handleEditMessage = (chat) => {
+    // Set the message being edited and pre-fill the text
+    setEditingMessageId(chat.id);
+    setEditedText(chat.text);  // Pre-fill the current message text
+  };
+  const handleSaveEdit = (chatId) => {
+    // Trigger socket event to save the edited message
+    socket.emit('tribeEditMessage', {
+      messageId: chatId,
+      newText: editedText,
+      userId: credentials.userId,
+      chatLobbyId: credentials.room,
+    }, (error, success) => {
+      if (error) {
+        console.error('Error editing message:', error);
+      } else {
+        console.log('Message edited successfully:', success);
+        setEditingMessageId(null); // Reset editing mode
+      }
+    });
+  };
+  const handleCancelEdit = () => {
+    setEditingMessageId(null); // Reset editing mode without saving
+  };
+
+  const isMessageEditable = (sentAt) => {
+    const now = new Date();
+    const messageTime = new Date(sentAt);
+    const timeDiff = now - messageTime; // Time difference in milliseconds
+    const sevenMinutes = 7 * 60 * 1000;
+    return timeDiff <= sevenMinutes; // Check if the message is within 7 minutes
+  };
+
+
+  // call to start a reply
+  const handleStartReply = (chat) => {
+    // defaults
+    let replyValue = chat.text || (chat.caption ?? '') || '';
+    let replyMedia = !!chat.reply_media; // prefer existing flag if present
+    let replyUrl = null;
+    let replyFilename = '';
+
+    // handle file-type messages
+    if (chat.type === "file") {
+      const trimmedUrl = (chat.url || "").trim();
+      const absoluteUrl = /^https?:\/\//.test(trimmedUrl)
+        ? trimmedUrl
+        : `${BASE_ENDPOINT}/uploads/${trimmedUrl}`;
+
+      // derive filename
+      replyFilename = (absoluteUrl.split('/').pop() || '').split('?')[0] || '';
+
+      // if image or video, use URL; otherwise use filename
+      if (chat.isImage || chat.isVideo) {
+        replyValue = absoluteUrl;
+        replyMedia = true;
+        replyUrl = absoluteUrl;
+      } else {
+        replyValue = replyFilename || (chat.caption ?? '') || '';
+        replyMedia = true; // you said "if replying to file make reply media true"
+        replyUrl = null;
+      }
+    }
+
+    setReplyingTo({
+      reply_id: chat.id,
+      reply_userid: chat.senderId,
+      reply: replyValue,
+      reply_username: chat.senderUsername || chat.from || '',
+      reply_media: replyMedia,
+      // helper client-only fields for preview
+      reply_url: replyUrl,
+      reply_filename: replyFilename,
+    });
+
+    setOpenDropdown(null);
+    // optional focus:
+    // const ta = document.querySelector('#chat-form textarea'); if (ta) ta.focus();
+  };
+
+
+  // cancel reply
+  const handleCancelReply = () => setReplyingTo(null);
 
 
   // Toggle dropdown visibility
@@ -104,6 +213,36 @@ export default function ChatAppMerged() {
     document.addEventListener('click', handleOutsideClick);
     return () => document.removeEventListener('click', handleOutsideClick); // Cleanup
   }, []);
+
+  // keep a mapping of message id -> DOM element
+  const messageRefs = useRef({});
+
+  // Scroll to a message already rendered in the DOM and flash it
+  const scrollToMessage = (targetId) => {
+    if (!targetId) return;
+    const container = chatContentRef.current;
+    const el = messageRefs.current[targetId];
+    if (el && container) {
+      // Smooth scroll the element into view within the scrollable chat container
+      // Use scrollIntoView because it works reliably with overflow:auto containers
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // temporary highlight
+      const prevBox = el.style.boxShadow;
+      const prevTransform = el.style.transform;
+      el.style.boxShadow = '0 0 0 4px rgba(59,130,246,0.18)';
+      el.style.transform = 'translateY(-2px)';
+      setTimeout(() => {
+        el.style.boxShadow = prevBox || '';
+        el.style.transform = prevTransform || '';
+      }, 1400);
+    } else {
+      // target not loaded (older page) — nothing to do here,
+      // you could fetch older pages, but that requires additional logic.
+      console.warn('Target message not present in DOM (not loaded yet):', targetId);
+    }
+  };
+
 
 
   // Add emoji to input
@@ -288,8 +427,14 @@ export default function ChatAppMerged() {
             time: formattedTime,
             senderUsername: message.senderUsername,
             seen: message.seen,
+            caption: message.caption,
             timestamp: message.sentAt,
             type: "text",
+            reply_id: message.reply_id,
+            reply_userid: message.reply_userid,
+            reply: message.reply,
+            edit: message.edit,
+            reply_username: message.reply_username,
           },
         ]);
       });
@@ -314,7 +459,13 @@ export default function ChatAppMerged() {
             senderUsername: message.senderUsername,
             type: "file",
             url: message.url,
+            caption: message.caption,
+            reply_id: message.reply_id,
+            reply_userid: message.reply_userid,
+            reply: message.reply,
+            reply_username: message.reply_username,
             isImage: message.isImage,
+            edit: msg.edit,
             isVideo:
               message.isVideo ||
               (message.url && /\.(mp4|webm|ogg)$/i.test(message.url)),
@@ -332,6 +483,26 @@ export default function ChatAppMerged() {
             }));
           }
         }
+      });
+
+      socketConnection.on("tribeMessageUpdated", ({ _id, chatLobbyId, text, senderId, sentAt, seen, type, edit }) => {
+        // Check if necessary fields are present before updating the state
+        setChats((prevChats) => {
+          return prevChats.map(chat => {
+            // If the current chat has the same _id as the updated one, update it
+            if (chat.id === _id) {
+              return {
+                ...chat,
+                text: text || chat.text, // Fallback to existing text if text is missing
+                edit: edit !== undefined ? edit : chat.edit, // Fallback to existing edit flag if missing
+                sentAt: sentAt || chat.sentAt, // Fallback to existing sentAt if missing
+                seen: seen !== undefined ? seen : chat.seen, // Update seen if provided, otherwise keep the existing one
+                type: type || chat.type, // Fallback to existing type if missing
+              };
+            }
+            return chat; // Return unchanged chat if it's not the updated one
+          });
+        });
       });
 
       return () => {
@@ -373,22 +544,50 @@ export default function ChatAppMerged() {
               },
             }
           );
-          const msgs = data.messages.map((msg) => ({
-            id: msg._id,
-            text: msg.message,
-            from: msg.sender.username || msg.sender,
-            senderId: msg.sender._id || msg.sender,
-            time: moment(msg.sentAt).format("hh:mm"),
-            timestamp: msg.sentAt,
-            senderUsername: msg.sender.username || msg.sender,
-            type: msg.type || "text",
-            seen: msg.seen,
-            url: msg.fileUrl,
-            isImage: msg.isImage,
-            isVideo:
-              msg.isVideo ||
-              (msg.fileUrl && /\.(mp4|webm|ogg)$/i.test(msg.fileUrl)),
-          }));
+          const msgs = data.messages.map((msg) => {
+            const trimmed = (msg.fileUrl || "").trim();
+            const fileUrl = /^https?:\/\//.test(trimmed) ? trimmed : `${BASE_ENDPOINT}/uploads/${trimmed}`;
+
+            // compute reply helper fields (server may already provide reply_media)
+            const replyMediaFlag = !!msg.reply_media;
+            let reply_url = null;
+            let reply_filename = '';
+
+            if (msg.reply) {
+              if (replyMediaFlag || /^https?:\/\//.test(String(msg.reply))) {
+                reply_url = /^https?:\/\//.test(String(msg.reply)) ? msg.reply : `${BASE_ENDPOINT}/uploads/${msg.reply}`;
+                reply_filename = (reply_url.split('/').pop() || '').split('?')[0];
+              } else {
+                reply_filename = String(msg.reply);
+              }
+            }
+
+            return {
+              id: msg._id,
+              text: msg.message,
+              from: msg.sender.username || msg.sender,
+              senderId: msg.sender._id || msg.sender,
+              time: moment(msg.sentAt).format("hh:mm"),
+              timestamp: msg.sentAt,
+              senderUsername: msg.sender.username || msg.sender,
+              type: msg.type || "text",
+              seen: msg.seen,
+              url: msg.fileUrl,
+              caption: msg.caption,
+              // reply fields
+              reply_id: msg.reply_id || null,
+              reply_userid: msg.reply_userid || null,
+              reply: msg.reply || null,
+              reply_username: msg.reply_username || null,
+              reply_media: replyMediaFlag,
+              reply_url,
+              reply_filename,
+              isImage: msg.isImage,
+              edit: msg.edit,
+              isVideo: msg.isVideo || (msg.fileUrl && /\.(mp4|webm|ogg)$/i.test(msg.fileUrl)),
+            };
+          });
+
           setHasMore(data.hasMore);
           if (page === 0) {
             setChats(msgs);
@@ -436,9 +635,14 @@ export default function ChatAppMerged() {
     if (input.trim() && socket) {
       socket.emit(
         "tribeCreateMessage",
-        { text: input, sender: authUser._id, room: credentials.room },
+        {
+          text: input, sender: authUser._id, room: credentials.room, reply_id: replyingTo?.reply_id || null,
+          reply_userid: replyingTo?.reply_userid || null,
+          reply: replyingTo?.reply || null, reply_username: replyingTo?.reply_username, reply_media: replyingTo?.reply_media || false,
+        },
         () => {
           setInput("");
+          setReplyingTo(null);
           if (chatContentRef.current) {
             chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
           }
@@ -468,12 +672,33 @@ export default function ChatAppMerged() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+      },
+      (err) => {
+      }
+    );
+  };
 
   // File upload via jQuery AJAX.
   const uploadFile = (fileEl, isPrivate) => {
     const formData = new FormData();
     formData.append("file", fileEl.files[0]);
+    formData.append("caption", caption);
+    if (replyingTo) {
+      formData.append("reply_id", replyingTo.reply_id);
+      formData.append("reply_userid", replyingTo.reply_userid);
+      formData.append("reply", replyingTo.reply);
+      formData.append("reply_username", replyingTo.reply_username);
+      formData.append("reply_media", replyingTo.reply_media ? "true" : "false");
+    } else {
+      formData.append("reply_id", "");
+      formData.append("reply_userid", "");
+      formData.append("reply", "");
+      formData.append("reply_username", "");
+      formData.append("reply_media", "false");
+    }
     $.ajax({
       url: `${BASE_ENDPOINT}/uploadmsg`,
       type: "POST",
@@ -578,8 +803,8 @@ export default function ChatAppMerged() {
     });
   };
   const renderMessage = (chat, index, isLast) => {
-    const isAdmin = tribeInfo?.admins?.includes(authUser?._id);
     console.log(chat);
+    const isAdmin = tribeInfo?.admins?.includes(authUser?._id);
     const canDelete =
       // original sender within 7min
       (chat.senderId === credentials.userId &&
@@ -614,6 +839,7 @@ export default function ChatAppMerged() {
       return (
         <div
           key={index}
+          ref={(el) => (messageRefs.current[chat.id] = el)}
           className={`chat-item chat-${chat.from === credentials.name ? "right" : "left"
             }`}
           style={{
@@ -635,14 +861,154 @@ export default function ChatAppMerged() {
             }}
           />
           <div className="chat-details">
+
             <div className="message-container" style={{ position: "relative", display: "inline-block", }}>
+              {chat.reply && chat.reply_id && (
+                (() => {
+                  const replyUrl = chat.reply_url || (typeof chat.reply === 'string' ? chat.reply : null) || '';
+                  const isReplyImg = !!replyUrl && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(replyUrl);
+                  const isReplyVid = !!replyUrl && /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(replyUrl);
+                  const isReplyFile = !!chat.reply_media && !isReplyImg && !isReplyVid;
+
+                  // compact sizes
+                  const BOX_HEIGHT = 36;
+                  const THUMB = 28;
+
+                  // Function to handle image click for larger view (lightbox)
+                  const handleImageClick = (url) => {
+                    setEnlargedImageUrl(url);  // Assuming you already have the state setup for enlargedImageUrl
+                  };
+
+                  // Function to display partial text before truncating
+                  const getTruncatedText = (text, maxLength = 20) => {
+                    return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
+                  };
+                  const replyStyle = {
+                    position: "relative",
+                    marginTop: "10px", // Space from the above message
+                    marginLeft: chat.from === credentials.name ? "50px" : "auto", // Adjust starting point of reply (left for sent, right for received)
+                    marginRight: chat.from !== credentials.name ? "50px" : "auto", // Adjust starting point of reply (right for received, left for sent)
+                    top: "50%",  // Center vertically in relation to the profile image
+                    transform: "translateY(-50%)", // Center vertically using transform
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    fontSize: "10px",
+                    background: "#e1e1e1ff", // Light grey background behind the reply
+                    borderRadius: "8px", // Rounded corners for the reply background
+                    padding: "4px 8px", // Padding around the reply content
+                    cursor: "pointer", // Change the cursor to a clickable pointer
+                  };
+
+                  return (
+                    <div
+                      onClick={() => scrollToMessage(chat.reply_id)} // Scroll to the original message on click
+                      title="Jump to replied message"
+                      style={replyStyle}
+                    >
+                      {/* LEFT tiny thumbnail / icon */}<i className="mdi mdi-reply" style={{ fontSize: 16, color: "#666" }} />
+                      {(isReplyImg || isReplyVid || isReplyFile) && (
+                        <div style={{
+                          width: THUMB,
+                          height: THUMB,
+                          borderRadius: 6,
+                          overflow: "hidden",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#fafafa",
+                          border: "1px solid #eee"
+                        }}>
+                          {isReplyImg ? (
+                            <img
+                              src={replyUrl}
+                              alt="img"
+                              style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer" }}
+                            />
+                          ) : isReplyVid ? (
+                            <video
+                              src={replyUrl}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              muted
+                              playsInline
+                              controls={false}
+                              onPlay={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                            />
+                          ) : isReplyFile ? (
+                            <i className="mdi mdi-file" style={{ fontSize: 16, color: "#666" }} />
+                          ) : null}
+                        </div>
+                      )}
+
+
+                      {/* RIGHT: for media replies we show NO text (per request). */}
+                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                        {isReplyImg || isReplyVid ? (
+                          <span style={{ color: "#444", fontWeight: 600, fontSize: 12, marginLeft: 6 }}>
+                            {chat.reply_username ? `${chat.reply_username}` : "Replied message"}
+                          </span>
+                        ) : isReplyFile ? (
+                          <span style={{ color: "#444", fontWeight: 600, fontSize: 12 }}>
+                            {chat.reply_username ? `${chat.reply_username}: ` : ''}File
+                          </span>
+                        ) : (
+                          <span style={{ color: "#444", fontWeight: 600, marginRight: 6 }}>
+                            {chat.reply_username ? `${chat.reply_username}: ` : ''}
+                          </span>
+                        )}
+
+                        {/* Only render the reply text for non-media text replies */}
+                        {!(isReplyImg || isReplyVid || isReplyFile) && (
+                          <span style={{ color: "#555", marginLeft: 4, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {getTruncatedText(chat.reply || "")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
               {showUsername && (
                 <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '12px' }}>
                   {chat.senderUsername}
                 </div>
               )}
+
+
+
+
+
+
               <div className="chat-text" style={{ padding: "8px 12px", borderRadius: "16px", position: "relative", }}>
-                {renderTextWithLargeEmojis(chat.text)}
+                {editingMessageId === chat.id ? (
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <textarea
+                      value={editedText}
+                      onChange={(e) => setEditedText(e.target.value)} // Update the text as the user types
+                      style={{ resize: "none", padding: "8px", borderRadius: "8px", marginBottom: "8px" }}
+                    />
+                    <button
+                      onClick={() => handleSaveEdit(chat.id)} // Save the edited message
+                      className="btn btn-primary btn-sm"
+                      style={{ marginTop: "8px" }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancelEdit} // Cancel editing
+                      className="btn btn-secondary btn-sm"
+                      style={{ marginTop: "8px" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  // If not editing, show the message text
+                  <div>{renderTextWithLargeEmojis(chat.text)}</div>
+                )}
 
                 {/* 3 Dot Icon */}
                 <div
@@ -711,13 +1077,54 @@ export default function ChatAppMerged() {
                         Delete for Everyone
                       </div>
                     )}
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #eee",
+                      }}
+                      onClick={() => {
+                        copyToClipboard(chat.text);  // Copy the chat text
+                        setOpenDropdown(null);  // Close the dropdown
+                      }}
+                    >
+                      Copy
+                    </div>
+                    <div
+                      className="dropdown-item"
+                      style={{
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #eee",
+                      }}
+                      onClick={() => { handleStartReply(chat); handleReplyPreviewOff(); }}
+                    >
+                      Reply
+                    </div>
+                    {chat.from === credentials.name && isMessageEditable(chat.timestamp) && (
+                      <div
+                        className="dropdown-item"
+                        style={{
+                          padding: "8px 16px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #eee",
+                        }}
+                        onClick={() => handleEditMessage(chat)}
+                      >
+                        Edit
+                      </div>)}
                   </div>
                 )}
 
 
               </div>
             </div>
-
+            {chat.edit && (
+              <div style={{ fontSize: "0.7em", color: "#666", marginTop: "4px", fontStyle: "italic" }}>
+                Edited
+              </div>
+            )}
             <div className="chat-time" style={{ fontSize: "0.8em", color: "#666", marginTop: "4px" }}>
               {chat.time}
             </div>
@@ -741,6 +1148,7 @@ export default function ChatAppMerged() {
       return (
         <div
           key={index}
+          ref={(el) => (messageRefs.current[chat.id] = el)}
           className={`chat-item chat-${chat.from === credentials.name ? "right" : "left"}`}
           style={{
             display: "flex",
@@ -765,6 +1173,116 @@ export default function ChatAppMerged() {
                 {chat.senderUsername}
               </div>
             )}
+
+            {chat.reply && chat.reply_id && (
+              (() => {
+                const replyUrl = chat.reply_url || (typeof chat.reply === 'string' ? chat.reply : null) || '';
+                const isReplyImg = !!replyUrl && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(replyUrl);
+                const isReplyVid = !!replyUrl && /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(replyUrl);
+                const isReplyFile = !!chat.reply_media && !isReplyImg && !isReplyVid;
+
+                // compact sizes
+                const BOX_HEIGHT = 36;
+                const THUMB = 28;
+
+                // Function to handle image click for larger view (lightbox)
+                const handleImageClick = (url) => {
+                  setEnlargedImageUrl(url);  // Assuming you already have the state setup for enlargedImageUrl
+                };
+
+                // Function to display partial text before truncating
+                const getTruncatedText = (text, maxLength = 20) => {
+                  return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
+                };
+                const replyStyle = {
+                  position: "relative",
+                  marginTop: "10px", // Space from the above message
+                  marginLeft: chat.from === credentials.name ? "50px" : "auto", // Adjust starting point of reply (left for sent, right for received)
+                  marginRight: chat.from !== credentials.name ? "50px" : "auto", // Adjust starting point of reply (right for received, left for sent)
+                  top: "50%",  // Center vertically in relation to the profile image
+                  transform: "translateY(-50%)", // Center vertically using transform
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  overflow: "hidden",
+                  whiteSpace: "nowrap",
+                  textOverflow: "ellipsis",
+                  fontSize: "10px",
+                  background: "#e1e1e1ff", // Light grey background behind the reply
+                  borderRadius: "8px", // Rounded corners for the reply background
+                  padding: "4px 8px", // Padding around the reply content
+                  cursor: "pointer", // Change the cursor to a clickable pointer
+                };
+
+                return (
+                  <div
+                    onClick={() => scrollToMessage(chat.reply_id)} // Scroll to the original message on click
+                    title="Jump to replied message"
+                    style={replyStyle}
+                  >
+                    {/* LEFT tiny thumbnail / icon */}
+                    <div style={{
+                      width: THUMB,
+                      height: THUMB,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#fafafa",
+                      border: "1px solid #eee"
+                    }}>
+                      {isReplyImg ? (<>
+                        <i className="mdi mdi-reply" style={{ fontSize: 16, color: "#666" }} />
+                        <img
+                          src={replyUrl}
+                          alt="img"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer" }}
+                        /></>
+                      ) : isReplyVid ? (
+                        <video
+                          src={replyUrl}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          muted
+                          playsInline
+                          controls={false}
+                          onPlay={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                        />
+                      ) : isReplyFile ? (
+                        <i className="mdi mdi-file" style={{ fontSize: 16, color: "#666" }} />
+                      ) : (
+                        <i className="mdi mdi-reply" style={{ fontSize: 16, color: "#666" }} />
+                      )}
+                    </div>
+
+                    {/* RIGHT: for media replies we show NO text (per request). */}
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                      {isReplyImg || isReplyVid ? (
+                        <span style={{ color: "#444", fontWeight: 600, fontSize: 12, marginLeft: 6 }}>
+                          {chat.reply_username ? `${chat.reply_username}` : "Replied message"}
+                        </span>
+                      ) : isReplyFile ? (
+                        <span style={{ color: "#444", fontWeight: 600, fontSize: 12 }}>
+                          {chat.reply_username ? `${chat.reply_username}: ` : ''}File
+                        </span>
+                      ) : (
+                        <span style={{ color: "#444", fontWeight: 600, marginRight: 6 }}>
+                          {chat.reply_username ? `${chat.reply_username}: ` : ''}
+                        </span>
+                      )}
+
+                      {/* Only render the reply text for non-media text replies */}
+                      {!(isReplyImg || isReplyVid || isReplyFile) && (
+                        <span style={{ color: "#555", marginLeft: 4, overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {getTruncatedText(chat.reply || "")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+
             <div className="message-container" style={{ position: "relative", display: "inline-block" }}>
               {chat.isImage ? (
                 <img src={fileUrl} alt="uploaded" style={commonimgResponsiveStyle} />
@@ -786,6 +1304,18 @@ export default function ChatAppMerged() {
                   <div style={{ fontSize: "0.8em", marginTop: "4px", wordBreak: "break-all" }}>
                     {fileUrl.split("/").pop()}
                   </div>
+                </div>
+              )}
+              {chat.caption && (
+                <div className="chat-details">
+                  <div className="message-container" style={{ position: "relative", display: "inline-block", }}>
+                    <div className="chat-text" style={{ padding: "8px 12px", borderRadius: "16px", position: "relative", }}>
+                      {chat.caption}
+
+
+                    </div>
+                  </div>
+
                 </div>
               )}
               <div
@@ -854,6 +1384,17 @@ export default function ChatAppMerged() {
                       Delete for Everyone
                     </div>
                   )}
+                  <div
+                    className="dropdown-item"
+                    style={{
+                      padding: "8px 16px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee",
+                    }}
+                    onClick={() => { handleStartReply(chat); handleReplyPreview(fileUrl); }}
+                  >
+                    Reply
+                  </div>
                 </div>
               )}
             </div>
@@ -959,6 +1500,21 @@ export default function ChatAppMerged() {
                                 !selectedFile.type.startsWith("video/") && (
                                   <div style={{ textAlign: "center" }}>{selectedFile.name}</div>
                                 )}
+                              <div style={{ marginTop: "1rem" }}>
+                                <input
+                                  type="text"
+                                  id="caption"
+                                  placeholder="Add Caption"
+                                  value={caption}
+                                  onChange={handleCaptionChange} // Handle caption change
+                                  style={{
+                                    width: "100%",
+                                    padding: "0.5rem",
+                                    borderRadius: "4px",
+                                    border: "1px solid #ccc",
+                                  }}
+                                />
+                              </div>
                               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem", gap: "0.5rem" }}>
                                 <button onClick={handleSendFile} className="btn btn-sm btn-primary">
                                   Send
@@ -1137,6 +1693,133 @@ export default function ChatAppMerged() {
                                       />
                                     </div>
                                   )}
+                                  {/* Reply preview - single-line bubble above input */}
+                                  {replyingTo && (
+                                    <div style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      padding: '8px 12px',
+                                      margin: '8px 12px 0 12px',
+                                      background: '#f5f6f8',
+                                      borderRadius: '12px',
+                                      maxWidth: 'calc(100% - 24px)',
+                                      whiteSpace: 'nowrap',
+                                      textOverflow: 'ellipsis',
+                                      position: 'relative',
+                                      zIndex: 50,
+                                      border: '1px solid #e0e0e0'
+                                    }}>
+                                      {/* Preview column (image / video / file icon) */}
+                                      <div style={{ flex: '0 0 auto', marginRight: 8, display: 'flex', alignItems: 'center' }}>
+                                        {reply_image ? (
+                                          // Image thumbnail
+                                          <img
+                                            src={replyingTo.reply}
+                                            alt="img preview"
+                                            style={{
+                                              width: 48,
+                                              height: 48,
+                                              objectFit: 'cover',
+                                              borderRadius: 6,
+                                              border: '1px solid #ddd',
+                                              display: 'block'
+                                            }}
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                          />
+                                        ) : reply_video ? (
+                                          // Non-playable video preview — interaction prevented
+                                          <div style={{
+                                            width: 48,
+                                            height: 48,
+                                            borderRadius: 6,
+                                            overflow: 'hidden',
+                                            border: '1px solid #ddd',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: '#000'
+                                          }}>
+                                            <video
+                                              src={replyingTo.reply}
+                                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                              // no controls and disable interaction to ensure it doesn't play
+                                              controls={false}
+                                              muted
+                                              playsInline
+                                              onClick={(e) => { e.preventDefault(); e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                                              onPlay={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                                            />
+                                          </div>
+                                        ) : reply_file ? (
+                                          // Generic file icon + (optional) filename
+                                          <div style={{
+                                            width: 48,
+                                            height: 48,
+                                            borderRadius: 6,
+                                            overflow: 'hidden',
+                                            border: '1px solid #ddd',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: '#fff'
+                                          }}>
+                                            <i className="mdi mdi-file" style={{ fontSize: 20, color: '#666' }} />
+                                          </div>
+                                        ) : (<></>)}
+                                      </div>
+
+                                      {/* Text part */}
+                                      <div style={{
+                                        overflow: 'hidden',
+                                        whiteSpace: 'nowrap',
+                                        textOverflow: 'ellipsis',
+                                        flex: 1,
+                                        fontSize: '0.85em',
+                                        color: '#333',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        minWidth: 0 // allow ellipsis in flex children
+                                      }}>
+
+                                        <div style={{ fontSize: '0.82em', color: '#555', fontWeight: 600, marginBottom: 2 }}>
+                                          Replying to {replyingTo.reply_username || 'message'}:
+                                        </div>
+                                        {/* If there is a file name show it before the text, else show reply text */}
+                                        {!reply_image && !reply_video && (<>
+
+                                          <div style={{
+                                            overflow: 'hidden',
+                                            whiteSpace: 'nowrap',
+                                            textOverflow: 'ellipsis',
+                                          }}>
+                                            {replyingTo.filename
+                                              ? replyingTo.filename
+                                              : replyingTo.reply || ''}
+                                          </div></>
+                                        )}
+
+                                      </div>
+
+                                      {/* Cancel button */}
+                                      <button
+                                        onClick={handleCancelReply}
+                                        title="Cancel reply"
+                                        style={{
+                                          marginLeft: '8px',
+                                          border: 'none',
+                                          background: 'transparent',
+                                          cursor: 'pointer',
+                                          fontSize: '1.0em',
+                                          color: '#888',
+                                          flex: '0 0 auto'
+                                        }}
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  )}
+
+
                                   <div className="card-footer chat-form">
                                     <form
                                       id="chat-form"
@@ -1151,9 +1834,10 @@ export default function ChatAppMerged() {
                                         onKeyDown={handleKeyDown}
                                         style={{
                                           resize: "none",
-                                          overflow: "hidden",
+                                          overflow: "auto",
                                           height: "50px",
                                           flex: 1,
+                                          marginRight: "150px",
                                         }}
                                       ></textarea>
                                       <div style={{ position: 'relative' }}>

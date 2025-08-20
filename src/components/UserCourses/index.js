@@ -4,25 +4,18 @@ import Content from "./content";
 const MyTribes = () => {
   return (
     <>
-   {/*<Navbar />*/}
+      {/*<Navbar />*/}
       <div className="container-fluid page-body-wrapper">
-        <Sidebar/>
+        <Sidebar />
         <div className="main-panel">
-        <h1 className="text-center mt-4 mb-1 mx-auto">Courses</h1>
-
-       <div className="form-group">
-                      
-                    </div>
-
-          <Content/>
-
-
-
-  {/* partial */}
-</div>
-
+          <h1 className="text-center mt-4 mb-1 mx-auto">Courses</h1>
+          <div className="form-group">
+          </div>
+          <Content />
+          {/* partial */}
+        </div>
       </div>
-      </>
+    </>
   );
 };
 

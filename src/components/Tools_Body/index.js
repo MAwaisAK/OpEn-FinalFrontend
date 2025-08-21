@@ -64,20 +64,20 @@ const AdminBody = () => {
                             <td><b>Category</b></td>
                             <td>{tool.toolCategory}</td>
                           </tr>
-                          {/* <tr>
-        <td><b>Price</b></td>
-        <td>
-          {tool.price_heading && tool.price_heading.length > 0 && (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {tool.price_heading.map((heading, index) => (
-                <li key={index} style={{ display: "flex", gap: "10px" }}>
-                  <b>{heading}:</b> {tool.price[index] || "N/A"}
-                </li>
-              ))}
-            </ul>
-          )}
-        </td>
-      </tr> */}
+                          <tr>
+                            <td><b>Price Model</b></td>
+                            <td>
+                              {tool.price_heading && tool.price_heading.length > 0 && (
+                                <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                                  {tool.price_heading.map((heading, index) => (
+                                    <li key={index} style={{ display: "flex", gap: "10px" }}>
+                                      <b>{heading}:</b> {tool.price[index] || "N/A"}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </td>
+                          </tr>
                           {tool.files && tool.files.length > 0 && (
                             <tr>
                               <td><b>Material</b></td>

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../lib/AuthContext"; // Import the useAuth hook
-import {getTribesByIds} from "@/app/api";
+import { getTribesByIds } from "@/app/api";
 import "@/styles/profile-style.css";
 import Link from "next/link";
 
@@ -25,10 +25,10 @@ const MyTribes = () => {
         console.error("Error fetching tribe details:", error);
       }
     };
-  
+
     fetchTribesData();
   }, [user]);
-  
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,8 +41,8 @@ const MyTribes = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-    useEffect(() => {
-    }, [tribesData]); // This will log whenever tribesData is updated
+  useEffect(() => {
+  }, [tribesData]); // This will log whenever tribesData is updated
 
   return (
     <>
@@ -130,56 +130,56 @@ const MyTribes = () => {
               </div>
 
               <p className="userprofile-desc">
-                {user ? user.bio : "Hi! My name is Jane Doe. I'm from Paris, in France. I really enjoy photography and mountains."}
+                {user ? user.aboutme : "jane.doe@gmail.com"}
               </p>
 
               <div className="userprofile-social">
-  {user && user.facebook_link && (
-    <a href={user.facebook_link} target="_blank" rel="noopener noreferrer">
-      <i
-        className="fa-brands fa-facebook-f"
-        aria-hidden="true"
-        style={{ color: "#3b5998" }} // Facebook blue
-      />
-    </a>
-  )}
-  {user && user.instagram_link && (
-    <a href={user.instagram_link} target="_blank" rel="noopener noreferrer">
-      <i
-        className="fa-brands fa-instagram"
-        aria-hidden="true"
-        style={{ color: "red" }} // Instagram red
-      />
-    </a>
-  )}
-  {user && user.linkedin_link && (
-    <a href={user.linkedin_link} target="_blank" rel="noopener noreferrer">
-      <i
-        className="fa-brands fa-linkedin"
-        aria-hidden="true"
-        style={{ color: "darkblue" }} // LinkedIn dark blue
-      />
-    </a>
-  )}
-  {user && user.x_link && (
-    <a href={user.x_link} target="_blank" rel="noopener noreferrer">
-      <i
-        className="fa-brands fa-x-twitter"
-        aria-hidden="true"
-        style={{ color: "black" }} // X black
-      />
-    </a>
-  )}
-  {user && user.web_link && (
-    <a href={user.web_link} target="_blank" rel="noopener noreferrer">
-      <i
-        className="fa-solid fa-globe"
-        aria-hidden="true"
-        style={{ color: "black" }} // Web black
-      />
-    </a>
-  )}
-</div>
+                {user && user.facebook_link && (
+                  <a href={user.facebook_link} target="_blank" rel="noopener noreferrer">
+                    <i
+                      className="fa-brands fa-facebook-f"
+                      aria-hidden="true"
+                      style={{ color: "#3b5998" }} // Facebook blue
+                    />
+                  </a>
+                )}
+                {user && user.instagram_link && (
+                  <a href={user.instagram_link} target="_blank" rel="noopener noreferrer">
+                    <i
+                      className="fa-brands fa-instagram"
+                      aria-hidden="true"
+                      style={{ color: "red" }} // Instagram red
+                    />
+                  </a>
+                )}
+                {user && user.linkedin_link && (
+                  <a href={user.linkedin_link} target="_blank" rel="noopener noreferrer">
+                    <i
+                      className="fa-brands fa-linkedin"
+                      aria-hidden="true"
+                      style={{ color: "darkblue" }} // LinkedIn dark blue
+                    />
+                  </a>
+                )}
+                {user && user.x_link && (
+                  <a href={user.x_link} target="_blank" rel="noopener noreferrer">
+                    <i
+                      className="fa-brands fa-x-twitter"
+                      aria-hidden="true"
+                      style={{ color: "black" }} // X black
+                    />
+                  </a>
+                )}
+                {user && user.web_link && (
+                  <a href={user.web_link} target="_blank" rel="noopener noreferrer">
+                    <i
+                      className="fa-solid fa-globe"
+                      aria-hidden="true"
+                      style={{ color: "black" }} // Web black
+                    />
+                  </a>
+                )}
+              </div>
 
 
               <div className="tribe d-flex justify-content-center">
@@ -207,80 +207,70 @@ const MyTribes = () => {
 
               {/* Conditional Content */}
               {/* Conditional Content */}
-{activeTab === "tribes" ? (
- <ul className="tribe-list">
- {tribesData.length > 0 ? (
-   tribesData.map((tribe, index) => (
-     <li key={index} className="tribe-item">
-       {/* Tribe Thumbnail */}
-       <div className="tribe-thumbnail">
-         <img
-           src={tribe.thumbnail || "https://via.placeholder.com/150"} // Default placeholder image if thumbnail is missing
-           alt={`Thumbnail for ${tribe.title}`}
-           className="tribe-thumbnail-img"
-         />
-       </div>
+              {activeTab === "tribes" ? (
+                <ul className="tribe-list">
+                  {tribesData.length > 0 ? (
+                    tribesData.map((tribe, index) => (
+                      <li key={index} className="tribe-item">
+                        {/* Tribe Thumbnail */}
+                        <div className="tribe-thumbnail">
+                          <img
+                            src={tribe.thumbnail || "https://via.placeholder.com/150"} // Default placeholder image if thumbnail is missing
+                            alt={`Thumbnail for ${tribe.title}`}
+                            className="tribe-thumbnail-img"
+                          />
+                        </div>
 
-       <Link href={`/profile/tribes/${tribe._id}`}>
-       <div className="tribe-info">
-         <strong className="tribe-title">{tribe.title}</strong>
-         <p className="tribe-category">{tribe.tribeCategory}</p>
-       </div>
-       </Link>
-     </li>
-   ))
- ) : (
-   <li>No tribes joined yet.</li>
- )}
-</ul>
-) : (
-  <div className="about-info">
-    <p>
-      <strong>First Name:</strong> {user ? user.firstName : "Jane"}
-    </p>
-    <p>
-      <strong>Last Name:</strong> {user ? user.lastName : "Doe"}
-    </p>
-    <p>
-      <strong>Description:</strong>{" "}
-      {user ? user.bio : "Passionate about photography and exploring new places."}
-    </p>
-    <p>
-      <strong>Primary Business:</strong>{" "}
-      {user && user.primary_business ? user.primary_business : "Not Provided"}
-    </p>
-    <p>
-      <strong>Business Country:</strong>{" "}
-      {user && user.business_country && user.business_country.length > 0
-        ? user.business_country.join(", ")
-        : "Not Provided"}
-    </p>
-    <p>
-      <strong>Business Industry:</strong>{" "}
-      {user && user.business_industry && user.business_industry.length > 0
-        ? user.business_industry.join(", ")
-        : "Not Provided"}
-    </p>
-    <p>
-      <strong>Value Chain Stake:</strong>{" "}
-      {user && user.value_chainstake && user.value_chainstake.length > 0
-        ? user.value_chainstake.join(", ")
-        : "Not Provided"}
-    </p>
-    <p>
-      <strong>Markets Covered:</strong>{" "}
-      {user && user.markets_covered && user.markets_covered.length > 0
-        ? user.markets_covered.join(", ")
-        : "Not Provided"}
-    </p>
-    <p>
-      <strong>Immediate Needs:</strong>{" "}
-      {user && user.immediate_needs && user.immediate_needs.length > 0
-        ? user.immediate_needs.join(", ")
-        : "Not Provided"}
-    </p>
-  </div>
-)}
+                        <Link href={`/profile/tribes/${tribe._id}`}>
+                          <div className="tribe-info">
+                            <strong className="tribe-title">{tribe.title}</strong>
+                            <p className="tribe-category">{tribe.tribeCategory}</p>
+                          </div>
+                        </Link>
+                      </li>
+                    ))
+                  ) : (
+                    <li>No tribes joined yet.</li>
+                  )}
+                </ul>
+              ) : (
+                <div className="about-info">
+                  <p>
+                    <strong>Primary Business:</strong>{" "}
+                    {user && user.primary_business ? user.primary_business : "Not Provided"}
+                  </p>
+                  <p>
+                    <strong>Business Country:</strong>{" "}
+                    {user && user.business_country && user.business_country.length > 0
+                      ? user.business_country.join(", ")
+                      : "Not Provided"}
+                  </p>
+                  <p>
+                    <strong>Business Industry:</strong>{" "}
+                    {user && user.business_industry && user.business_industry.length > 0
+                      ? user.business_industry.join(", ")
+                      : "Not Provided"}
+                  </p>
+                  <p>
+                    <strong>Value Chain Stake:</strong>{" "}
+                    {user && user.value_chainstake && user.value_chainstake.length > 0
+                      ? user.value_chainstake.join(", ")
+                      : "Not Provided"}
+                  </p>
+                  <p>
+                    <strong>Markets Covered:</strong>{" "}
+                    {user && user.markets_covered && user.markets_covered.length > 0
+                      ? user.markets_covered.join(", ")
+                      : "Not Provided"}
+                  </p>
+                  <p>
+                    <strong>Immediate Needs:</strong>{" "}
+                    {user && user.immediate_needs && user.immediate_needs.length > 0
+                      ? user.immediate_needs.join(", ")
+                      : "Not Provided"}
+                  </p>
+                </div>
+              )}
 
             </div>
           </div>

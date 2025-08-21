@@ -292,7 +292,7 @@ const MyTribes = () => {
               </div>
 
               <p className="userprofile-desc">
-                {profile.bio || "Not Provided"}
+                {profile ? profile.aboutme : "jane.doe@gmail.com"}
               </p>
 
               <div className="userprofile-social">

@@ -188,6 +188,7 @@ const UserReports = () => {
                               <tr>
                                 <th>#</th>
                                 <th>Username</th>
+                                <th>Email</th>
                                 <th>Subscription</th>
                                 <th>Type</th>
                                 <th>Description</th>
@@ -215,6 +216,9 @@ const UserReports = () => {
                                       ) : (
                                         "N/A"
                                       )}
+                                    </td>
+                                    <td>
+                                      {report.user?.email || "N/A"}
                                     </td>
                                     <td>
                                       {report.user?.subscription || "N/A"}
@@ -251,7 +255,7 @@ const UserReports = () => {
                                         }}
                                         className="form-control form-control-sm"
                                         rows={3}  // Start with 3 rows (adjust as necessary)
-                                        style={{ resize: "vertical" }} // Allow vertical resizing
+                                        style={{ resize: "vertical",width:"250px" }} // Allow vertical resizing
                                       />
                                     </td>
 

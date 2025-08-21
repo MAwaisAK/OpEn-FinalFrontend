@@ -163,6 +163,7 @@ const MyTribes = () => {
         email: user.email,
         username: user.username || "",
         aboutme: user.aboutme || "",
+        business_country: user.business_country || "",
         primary_business: user.primary_business || "",
         country: user.country || "",
         business_industry: user.business_industry || [],
@@ -776,12 +777,31 @@ const MyTribes = () => {
 
                           {/* Country of Establishment */}
                           <div className="form-group">
-                            <label htmlFor="country">Country of Establishment</label>
+                            <label htmlFor="country">User Country</label>
                             <select
                               className="form-control"
                               id="country"
                               name="country"
                               value={userData.country}
+                              onChange={handleChange}
+                            >
+                              <option value="">Select a country...</option>
+                              {estabishmentcountryList.map((country, index) => (
+                                <option key={index} value={country}>
+                                  {country}
+                                </option>
+                              ))}
+                              <option value="Global">🌍 Global</option>
+                            </select>
+                          </div>
+
+                          <div className="form-group">
+                            <label htmlFor="country">Country of Establishment</label>
+                            <select
+                              className="form-control"
+                              id="business_country"
+                              name="business_country"
+                              value={userData.business_country}
                               onChange={handleChange}
                             >
                               <option value="">Select a country...</option>

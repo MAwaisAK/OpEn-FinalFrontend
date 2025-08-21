@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Sidebar from "../AdminSideBar";
 import Navbar from "../Nav";
 import { saveAs } from "file-saver";
-import {fetchAllToolsCoursesbyId } from "@/app/api";  // Import only needed functions}
+import { fetchAllToolsCoursesbyId } from "@/app/api";  // Import only needed functions}
 
 const AdminBody = () => {
   const { id } = useParams(); // Course ID from URL
@@ -29,7 +29,7 @@ const AdminBody = () => {
 
   return (
     <>
-       {/*<Navbar />*/}
+      {/*<Navbar />*/}
       <div className="container-fluid page-body-wrapper">
         <Sidebar />
         <div className="main-panel">
@@ -46,7 +46,7 @@ const AdminBody = () => {
                             src={tool.thumbnail}
                             alt={tool.title}
                             className="img-fluid"
-                          />  
+                          />
                         </div>
                       </li>
                     </ul>
@@ -58,13 +58,13 @@ const AdminBody = () => {
                       </li>
                     </ul>
                     <div className="course-responsive">
-  <table className="table">
-    <tbody>
-      <tr>
-        <td><b>Category</b></td>
-        <td>{tool.courseCategory}</td>
-      </tr>
-      <tr>
+                      <table className="table">
+                        <tbody>
+                          <tr>
+                            <td><b>Category</b></td>
+                            <td>{tool.toolCategory}</td>
+                          </tr>
+                          {/* <tr>
         <td><b>Price</b></td>
         <td>
           {tool.price_heading && tool.price_heading.length > 0 && (
@@ -77,62 +77,62 @@ const AdminBody = () => {
             </ul>
           )}
         </td>
-      </tr>
-      {tool.files && tool.files.length > 0 && (
-        <tr>
-          <td><b>Material</b></td>
-          <td>
-            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {tool.files.map((fileUrl, index) => (
-                <li
-                  key={index}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    marginBottom: "5px",
-                    cursor: "pointer"
-                  }}
-                >
-                  <span
-                    onClick={() => handleDownload(fileUrl, `File ${index + 1}`)}
-                    style={{
-                      textDecoration: "none",
-                      color: "inherit",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "5px"
-                    }}
-                  >
-                    <span>File {index + 1}</span>
-                    <i className="mdi mdi-download" style={{ fontSize: "1.2rem" }}></i>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </td>
-        </tr>
-      )}
-      <tr>
-        <td><b>Tool Link</b></td>
-        <td>
-          {tool.externalLink ? (
-            <a
-              href={tool.externalLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ textDecoration: "none" }}
-            >
-              {tool.externalLink}
-            </a>
-          ) : (
-            "N/A"
-          )}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+      </tr> */}
+                          {tool.files && tool.files.length > 0 && (
+                            <tr>
+                              <td><b>Material</b></td>
+                              <td>
+                                <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                                  {tool.files.map((fileUrl, index) => (
+                                    <li
+                                      key={index}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "5px",
+                                        marginBottom: "5px",
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      <span
+                                        onClick={() => handleDownload(fileUrl, `File ${index + 1}`)}
+                                        style={{
+                                          textDecoration: "none",
+                                          color: "inherit",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "5px"
+                                        }}
+                                      >
+                                        <span>File {index + 1}</span>
+                                        <i className="mdi mdi-download" style={{ fontSize: "1.2rem" }}></i>
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td><b>Tool Link</b></td>
+                            <td>
+                              {tool.externalLink ? (
+                                <a
+                                  href={tool.externalLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ textDecoration: "none" }}
+                                >
+                                  {tool.externalLink}
+                                </a>
+                              ) : (
+                                "N/A"
+                              )}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
                   </div>
                 </div>
@@ -193,7 +193,7 @@ const AdminBody = () => {
         </div>
       </div>
     </>
-  
+
   );
 };
 

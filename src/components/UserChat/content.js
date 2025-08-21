@@ -84,6 +84,97 @@ export default function ChatAppMerged() {
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editedText, setEditedText] = useState('');
   const [forwardMessage, setForwardMessage] = useState('');
+  const [forwardFile, setForwardFile] = useState('');
+  const [forwardImage, setForwardImage] = useState(false);
+  const [forwardVideo, setForwardVideo] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]); // array of selected message ids
+  const [topDropdownOpen, setTopDropdownOpen] = useState(false); // if you have top chat dropdown
+
+  const isSelected = (id) => selectedIds.includes(id);
+
+  // toggle single message selection
+  const toggleSelectMessage = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // enter selection mode and optionally select a message immediately
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    if (initialId) {
+      setSelectedIds((prev) => (prev.includes(initialId) ? prev : [...prev, initialId]));
+    }
+  };
+
+  // exit and clear
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  // --- Bulk actions ---
+  const performBulkDeleteForMe = () => {
+    // use your existing deleteForMe API for each selected message
+    for (const id of selectedIds) {
+      try {
+        deleteForMe(id, credentials.userId, credentials.room);
+      } catch (err) {
+        console.error("Delete for me failed for", id, err);
+      }
+    }
+    exitSelectionMode();
+  };
+
+  const performBulkCopy = async () => {
+    // Build copy text in chat order; skip file messages entirely
+    let out = "";
+    for (const chat of chats) {
+      if (isSelected(chat.id) && chat.type === "text") {
+        // format requested: Username: (newline) Message (then a blank line)
+        out += `${chat.from}:\n${chat.text}\n\n`;
+      }
+    }
+    out = out.trim(); // remove final trailing blank line
+    if (!out) {
+      // Nothing to copy (maybe user selected only files)
+      // Optionally alert user — or just return
+      console.warn("Nothing to copy (no text messages selected).");
+      return;
+    }
+
+    // Try to use navigator.clipboard, fallback to your helper copyToClipboard if available
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(out);
+      } else if (typeof copyToClipboard === "function") {
+        copyToClipboard(out);
+      } else {
+        // fallback: create textarea
+        const ta = document.createElement("textarea");
+        ta.value = out;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      // optionally show toast/notification that copy succeeded
+      exitSelectionMode();
+    } catch (err) {
+      console.error("Copy failed", err);
+    }
+  };
+
+  // --- Hook to handle Escape key to cancel selection mode (optional) ---
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape" && selectionMode) exitSelectionMode();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectionMode]);
+
   const handleEditMessage = (chat) => {
     // Set the message being edited and pre-fill the text
     setEditingMessageId(chat.id);
@@ -1011,29 +1102,156 @@ export default function ChatAppMerged() {
   };
 
   const [showForwardModal, setShowForwardModal] = useState(false);
-  const handleForwardMessage = (userId) => {
-    // Assuming socket.io client is available as 'socket'
-    socket.emit('forwardMessage', {
-      userId1: credentials.userId, // The current user ID
-      userId2: userId, // The user to whom the message is being forwarded
-      messageContent: forwardMessage, // Content of the forwarded message
-    }, (response) => {
-      if (response) {
-        console.log('Message forwarded successfully:', response);
-      } else {
-        console.error('Error forwarding message');
-      }
-    });
+  // new state (add near your other useState lines)
+  const [bulkForwardMessages, setBulkForwardMessages] = useState([]); // [{id, from, text}]
+  const [bulkForwardFiles, setBulkForwardFiles] = useState([]); // [{id, fileUrl, isImage, isVideo}]
+  const [forwardRecipients, setForwardRecipients] = useState([]); // optional: allow multiple recipients later
+
+  // helper to reset forward-related state (single + bulk)
+  const resetForwardState = () => {
+    setShowForwardModal(false);
+    setForwardImage(false);
+    setForwardFile('');
+    setForwardVideo(false);
+    setForwardMessage('');
+    setBulkForwardMessages([]);
+    setBulkForwardFiles([]);
+    setForwardRecipients([]);
   };
+
+  // build bulk arrays from selectedIds and your chats array
+  const prepareBulkForward = () => {
+    const msgs = [];
+    const files = [];
+
+    for (const id of selectedIds) {
+      const chat = chats.find((c) => c.id === id);
+      if (!chat) continue;
+
+      // treat explicit text messages first
+      if (chat.type === 'text' || (chat.text && chat.text.trim() !== '')) {
+        msgs.push({ id: chat.id, from: chat.from || '', text: chat.text || '' });
+        continue;
+      }
+
+      // otherwise treat as a file (image/video/other)
+      // try to grab a file URL property (adapt if your model uses different prop name)
+      const fileUrl = chat.fileUrl || chat.file || chat.url || '';
+      const isImage = !!(chat.isImage || chat.type === 'image' || (chat.mime && chat.mime.startsWith('image')));
+      const isVideo = !!(chat.isVideo || chat.type === 'video' || (chat.mime && chat.mime.startsWith('video')));
+      if (fileUrl) {
+        files.push({ id: chat.id, fileUrl, isImage, isVideo });
+      } else {
+        // fallback: if there's no fileUrl but chat has attachments array etc, adapt here
+        console.warn('Selected chat looks like a file but no URL found for id', id, chat);
+      }
+    }
+
+    setBulkForwardMessages(msgs);
+    setBulkForwardFiles(files);
+
+    // open modal for choosing recipient(s) and confirming forward
+    setShowForwardModal(true);
+  };
+
+  // single-message forward is kept (but slightly tightened)
+  const handleForwardMessage = (userId) => {
+    if (!userId) return console.warn('No recipient specified');
+
+    if (forwardMessage) {
+      socket.emit(
+        'forwardMessage',
+        {
+          name: credentials.name,
+          userId1: credentials.userId,
+          userId2: userId,
+          messageContent: forwardMessage,
+        },
+        (response) => {
+          if (response) console.log('Message forwarded successfully:', response);
+          else console.error('Error forwarding message');
+        }
+      );
+    } else if (forwardFile) {
+      socket.emit(
+        'forwardFileMessage',
+        {
+          name: credentials.name,
+          userId1: credentials.userId,
+          userId2: userId,
+          fileUrl: forwardFile,
+          isImage: forwardImage,
+          isVideo: forwardVideo,
+        },
+        (response) => {
+          if (response) console.log('File forwarded successfully:', response);
+          else console.error('Error forwarding file');
+        }
+      );
+    }
+
+    resetForwardState();
+  };
+
+  // bulk-forward (for selected messages/files)
+  const handleBulkForward = async (userId) => {
+    if (!userId) return console.warn('No recipient specified for bulk forward');
+
+    // forward text messages first
+    for (const m of bulkForwardMessages) {
+      try {
+        socket.emit(
+          'forwardMessage',
+          {
+            name: credentials.name,
+            userId1: credentials.userId,
+            userId2: userId,
+            messageContent: m.text,
+            originalMessageId: m.id, // optional metadata
+          },
+          (response) => {
+            if (!response) console.error('Bulk forward message failed for', m.id);
+          }
+        );
+      } catch (err) {
+        console.error('Error forwarding message id', m.id, err);
+      }
+    }
+
+    // forward files
+    for (const f of bulkForwardFiles) {
+      try {
+        socket.emit(
+          'forwardFileMessage',
+          {
+            name: credentials.name,
+            userId1: credentials.userId,
+            userId2: userId,
+            fileUrl: f.fileUrl,
+            isImage: !!f.isImage,
+            isVideo: !!f.isVideo,
+            originalMessageId: f.id,
+          },
+          (response) => {
+            if (!response) console.error('Bulk forward file failed for', f.id);
+          }
+        );
+      } catch (err) {
+        console.error('Error forwarding file id', f.id, err);
+      }
+    }
+
+    // optional: you could await short delay or responses if backend returns promise/callback
+    resetForwardState();
+    exitSelectionMode(); // exit selection mode after forward
+  };
+
   const renderMessage = (chat, index, isLast) => {
-
-
-
-    // Use chat.timestamp for deletion timing
-    console.log(chat);
     const canDelete =
       chat.from === credentials.name &&
       new Date() - new Date(chat.timestamp) < 7 * 60 * 1000;
+
+
 
     // Show the "Seen" indicator only for the last message sent by the current user.
     const showSeen = isLast && chat.from === credentials.name;
@@ -1219,22 +1437,47 @@ export default function ChatAppMerged() {
                   // If not editing, show the message text
                   <div>{renderTextWithLargeEmojis(chat.text)}</div>
                 )}
-
-                <div
-                  className="three-dots-icon"
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
-                    left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
-                    transform: "translateY(-50%)",
-                    cursor: "pointer",
-                    color: "black",
-                  }}
-                  onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
-                >
-                  <i className="mdi mdi-dots-vertical" />
-                </div>
+                {selectionMode ? (
+                  <div
+                    className="message-select-checkbox"
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: chat.from === credentials.name ? "auto" : "-20px",
+                      left: chat.from === credentials.name ? "-20px" : "auto",
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelectMessage(chat.id);
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected(chat.id)}
+                      onChange={() => { }}
+                      // visually style it smaller if needed
+                      style={{ width: 18, height: 18 }}
+                      aria-label={`Select message ${chat.id}`}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="three-dots-icon"
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                      left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                      color: "black",
+                    }}
+                    onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+                  >
+                    <i className="mdi mdi-dots-vertical" />
+                  </div>)}
 
                 {/* Dropdown Menu */}
                 {openDropdown === index && (
@@ -1369,6 +1612,10 @@ export default function ChatAppMerged() {
       const fileUrl = /^https?:\/\//.test(trimmedUrl)
         ? trimmedUrl
         : `${BASE_ENDPOINT}/uploads/${trimmedUrl}`;
+      const is_Image = chat.isImage;
+      const is_Video = chat.isVideo;
+      console.log(is_Image);
+
       return (
         <div
           key={index}
@@ -1537,21 +1784,47 @@ export default function ChatAppMerged() {
 
                 </div>
               )}
-              <div
-                className="three-dots-icon"
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
-                  left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
-                  transform: "translateY(-50%)",
-                  cursor: "pointer",
-                  color: "black",
-                }}
-                onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
-              >
-                <i className="mdi mdi-dots-vertical" />
-              </div>
+              {selectionMode ? (
+                <div
+                  className="message-select-checkbox"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: chat.from === credentials.name ? "auto" : "-20px",
+                    left: chat.from === credentials.name ? "-20px" : "auto",
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelectMessage(chat.id);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected(chat.id)}
+                    onChange={() => { }}
+                    // visually style it smaller if needed
+                    style={{ width: 18, height: 18 }}
+                    aria-label={`Select message ${chat.id}`}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="three-dots-icon"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                    left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "black",
+                  }}
+                  onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+                >
+                  <i className="mdi mdi-dots-vertical" />
+                </div>)}
 
               {/* Dropdown Menu */}
               {openDropdown === index && (
@@ -1613,6 +1886,22 @@ export default function ChatAppMerged() {
                     onClick={() => { handleStartReply(chat); handleReplyPreview(fileUrl); }}
                   >
                     Reply
+                  </div>
+                  <div
+                    className="dropdown-item"
+                    style={{
+                      padding: "8px 16px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee",
+                    }}
+                    onClick={() => {
+                      setForwardFile(fileUrl);  // Save message
+                      setForwardImage(is_Image);
+                      setForwardVideo(is_Video);
+                      setShowForwardModal(true);
+                    }}
+                  >
+                    Forward
                   </div>
                 </div>
               )}
@@ -1959,31 +2248,107 @@ export default function ChatAppMerged() {
                             </div>
 
                             <div style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
-
                               <div className="dropdown">
                                 <i
                                   className="mdi mdi-dots-vertical"
                                   style={{ fontSize: "24px", cursor: "pointer" }}
                                   data-bs-toggle="dropdown"
                                   aria-expanded="false"
-                                ></i>
+                                />
                                 <ul className="dropdown-menu dropdown-menu-end">
-                                  <li>
-                                    <a
-                                      className="dropdown-item"
-                                      href="#"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        handleDeleteChat(credentials.room, credentials.userId);
-                                      }}
-                                    >
-                                      Delete Chat
-                                    </a>
-                                  </li>
-                                  <li>
-                                    <a className="dropdown-item" href="/profile/support">Report</a>
-                                  </li>
+                                  {!selectionMode ? (
+                                    <>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            handleDeleteChat(credentials.room, credentials.userId);
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Delete Chat
+                                        </a>
+                                      </li>
+                                      <li>
+                                        <a className="dropdown-item" href="/profile/support">Report</a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            enterSelectionMode(); // start selection mode (no initial message)
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Select
+                                        </a>
+                                      </li>
+                                    </>
+                                  ) : (
+                                    /* When in selection mode, show bulk actions at the top dropdown too */
+                                    <>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            performBulkDeleteForMe();
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Delete For Me
+                                        </a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            performBulkCopy();
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Copy
+                                        </a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            // build the arrays and open the forward modal
+                                            prepareBulkForward();
+
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Forward
+                                        </a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            exitSelectionMode();
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Cancel
+                                        </a>
+                                      </li>
+                                    </>
+                                  )}
                                 </ul>
+
                               </div>
                             </div>
                           </div>
@@ -2309,7 +2674,15 @@ export default function ChatAppMerged() {
                           backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
                           zIndex: 999, // Ensure overlay is behind the modal
                         }}
-                        onClick={() => setShowForwardModal(false)}
+                        onClick={() => {
+                          setShowForwardModal(false);
+                          setForwardImage(false);
+                          setForwardFile('');
+                          setForwardVideo(false);
+                          setForwardMessage('');
+                        }}
+
+
                       />
                       <div
                         className="col-lg-3"
@@ -2362,7 +2735,15 @@ export default function ChatAppMerged() {
                                           key={usr.chatLobbyId}
                                           className={`clearfix ${isActive ? "active-lobby" : ""}`}
                                           onClick={isActive ? undefined : () => {
-                                            handleForwardMessage(otherUser._id);
+                                            if (selectedIds && selectedIds.length > 0) {
+                                              handleBulkForward(otherUser._id);
+                                            } else {
+                                              handleForwardMessage(otherUser._id);
+                                            }
+                                            setForwardImage(false);
+                                            setForwardFile('');
+                                            setForwardVideo(false);
+                                            setForwardMessage('');
                                             setShowForwardModal(false); // close modal after forwarding
                                           }}
                                           style={{

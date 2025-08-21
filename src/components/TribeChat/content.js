@@ -111,6 +111,111 @@ export default function ChatAppMerged() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editedText, setEditedText] = useState('');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]); // array of selected message ids
+  const [topDropdownOpen, setTopDropdownOpen] = useState(false); // if you have top chat dropdown
+
+  const isSelected = (id) => selectedIds.includes(id);
+
+  // toggle single message selection
+  const toggleSelectMessage = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // enter selection mode and optionally select a message immediately
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    if (initialId) {
+      setSelectedIds((prev) => (prev.includes(initialId) ? prev : [...prev, initialId]));
+    }
+  };
+
+  // exit and clear
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  // --- Bulk actions ---
+  const performBulkDeleteForMe = () => {
+    // use your existing deleteForMe API for each selected message
+    for (const id of selectedIds) {
+      try {
+        deleteForMe(id, credentials.userId, credentials.room);
+      } catch (err) {
+        console.error("Delete for me failed for", id, err);
+      }
+    }
+    exitSelectionMode();
+  };
+
+  const performBulkDeleteForEveryone = () => {
+    for (const id of selectedIds) {
+      const chatObj = chats.find((c) => c.id === id);
+      try {
+        deleteMessageSocket(
+          id,
+          "forEveryone",
+          credentials.room,
+          credentials.userId,
+          chatObj ? chatObj.timestamp : undefined
+        );
+      } catch (err) {
+        console.error("Bulk delete for everyone failed for", id, err);
+      }
+    }
+    exitSelectionMode();
+  };
+
+  const performBulkCopy = async () => {
+    // Build copy text in chat order; skip file messages entirely
+    let out = "";
+    for (const chat of chats) {
+      if (isSelected(chat.id) && chat.type === "text") {
+        // format requested: Username: (newline) Message (then a blank line)
+        out += `${chat.from}:\n${chat.text}\n\n`;
+      }
+    }
+    out = out.trim(); // remove final trailing blank line
+    if (!out) {
+      // Nothing to copy (maybe user selected only files)
+      // Optionally alert user — or just return
+      console.warn("Nothing to copy (no text messages selected).");
+      return;
+    }
+
+    // Try to use navigator.clipboard, fallback to your helper copyToClipboard if available
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(out);
+      } else if (typeof copyToClipboard === "function") {
+        copyToClipboard(out);
+      } else {
+        // fallback: create textarea
+        const ta = document.createElement("textarea");
+        ta.value = out;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      // optionally show toast/notification that copy succeeded
+      exitSelectionMode();
+    } catch (err) {
+      console.error("Copy failed", err);
+    }
+  };
+
+  // --- Hook to handle Escape key to cancel selection mode (optional) ---
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape" && selectionMode) exitSelectionMode();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectionMode]);
   const handleEditMessage = (chat) => {
     // Set the message being edited and pre-fill the text
     setEditingMessageId(chat.id);
@@ -465,7 +570,7 @@ export default function ChatAppMerged() {
             reply: message.reply,
             reply_username: message.reply_username,
             isImage: message.isImage,
-            edit: msg.edit,
+            edit: message.edit,
             isVideo:
               message.isVideo ||
               (message.url && /\.(mp4|webm|ogg)$/i.test(message.url)),
@@ -803,7 +908,6 @@ export default function ChatAppMerged() {
     });
   };
   const renderMessage = (chat, index, isLast) => {
-    console.log(chat);
     const isAdmin = tribeInfo?.admins?.includes(authUser?._id);
     const canDelete =
       // original sender within 7min
@@ -1011,21 +1115,47 @@ export default function ChatAppMerged() {
                 )}
 
                 {/* 3 Dot Icon */}
-                <div
-                  className="three-dots-icon"
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
-                    left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
-                    transform: "translateY(-50%)",
-                    cursor: "pointer",
-                    color: "black",
-                  }}
-                  onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
-                >
-                  <i className="mdi mdi-dots-vertical" />
-                </div>
+                {selectionMode ? (
+                  <div
+                    className="message-select-checkbox"
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: chat.from === credentials.name ? "auto" : "-20px",
+                      left: chat.from === credentials.name ? "-20px" : "auto",
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelectMessage(chat.id);
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected(chat.id)}
+                      onChange={() => { }}
+                      // visually style it smaller if needed
+                      style={{ width: 18, height: 18 }}
+                      aria-label={`Select message ${chat.id}`}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="three-dots-icon"
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                      left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                      color: "black",
+                    }}
+                    onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+                  >
+                    <i className="mdi mdi-dots-vertical" />
+                  </div>)}
 
                 {/* Dropdown Menu */}
                 {openDropdown === index && (
@@ -1318,22 +1448,48 @@ export default function ChatAppMerged() {
 
                 </div>
               )}
-              <div
-                className="three-dots-icon"
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
-                  left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
-                  transform: "translateY(-50%)",
-                  cursor: "pointer",
-                  color: "black",
-                }}
-                onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
-              >
-                <i className="mdi mdi-dots-vertical" />
-              </div>
-
+              {selectionMode ? (
+                <div
+                  className="message-select-checkbox"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: chat.from === credentials.name ? "auto" : "-20px",
+                    left: chat.from === credentials.name ? "-20px" : "auto",
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelectMessage(chat.id);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected(chat.id)}
+                    onChange={() => { }}
+                    // visually style it smaller if needed
+                    style={{ width: 18, height: 18 }}
+                    aria-label={`Select message ${chat.id}`}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="three-dots-icon"
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: chat.from === credentials.name ? "auto" : "-20px",  // Right for left chat
+                    left: chat.from === credentials.name ? "-20px" : "auto",  // Left for right chat
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "black",
+                  }}
+                  onClick={(e) => toggleDropdown(index, e)} // Toggle dropdown on click
+                >
+                  <i className="mdi mdi-dots-vertical" />
+                </div>
+              )}
               {/* Dropdown Menu */}
               {openDropdown === index && (
                 <div
@@ -1619,6 +1775,82 @@ export default function ChatAppMerged() {
                               )}
                             </div>
                             {/* Right: Call & Menu Icons can be added here */}
+                            <div style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
+                              <div className="dropdown">
+                                <i
+                                  className="mdi mdi-dots-vertical"
+                                  style={{ fontSize: "24px", cursor: "pointer" }}
+                                  data-bs-toggle="dropdown"
+                                  aria-expanded="false"
+                                />
+                                <ul className="dropdown-menu dropdown-menu-end">
+                                  {!selectionMode ? (
+                                    <>
+                                      <li>
+                                        <a className="dropdown-item" href="/profile/support">Report</a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            enterSelectionMode(); // start selection mode (no initial message)
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Select
+                                        </a>
+                                      </li>
+                                    </>
+                                  ) : (
+                                    /* When in selection mode, show bulk actions at the top dropdown too */
+                                    <>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            performBulkDeleteForMe();
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Delete For Me
+                                        </a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            performBulkCopy();
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Copy
+                                        </a>
+                                      </li>
+                                      <li>
+                                        <a
+                                          className="dropdown-item"
+                                          href="#"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            exitSelectionMode();
+                                            setTopDropdownOpen(false);
+                                          }}
+                                        >
+                                          Cancel
+                                        </a>
+                                      </li>
+                                    </>
+                                  )}
+                                </ul>
+
+                              </div>
+                            </div>
                           </div>
 
                           {/* Chat Box */}

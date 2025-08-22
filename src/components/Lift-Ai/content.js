@@ -6,10 +6,22 @@ const MyTribes = () => {
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "🚀 Lift AI – Coming Soon!\n\nWe’re working hard to bring Lift AI to life — your personal business companion right inside the app. With Lift AI, you’ll be able to:\n\n- Generate Business Documents: Get important documents tailored to your business needs in minutes.\n- Access Ready-to-Use Templates: Use practical business templates you can quickly fill out and adapt.\n- Consult on Demand: Receive personalized business guidance for your unique challenges.\n\nStay tuned — this feature is almost here, and it’s built to help you work smarter, not harder!",
+      text: (
+        `
+          <p>🚀 Lift AI – Coming Soon!</p>
+          <p>We’re working hard to bring Lift AI to life — your personal business companion right inside the app. With Lift AI, you’ll be able to:</p>
+          <ul>
+            <li>Generate Business Documents: Get important documents tailored to your business needs in minutes.</li>
+            <li>Access Ready-to-Use Templates: Use practical business templates you can quickly fill out and adapt.</li>
+            <li>Consult on Demand: Receive personalized business guidance for your unique challenges.</li>
+          </ul>
+          <p>Stay tuned — this feature is almost here, and it’s built to help you work smarter, not harder!</p>
+        `
+      ),
       timestamp: Date.now(),
     },
   ]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef(null);
@@ -32,27 +44,28 @@ const MyTribes = () => {
     setMessages((m) => [...m, newMessage]);
     setInput("");
 
-    // 2) add temporary bot placeholder
-    setMessages((m) => [...m, { sender: "bot", text: "Thinking…" }]);
-    setLoading(true);
-
     try {
-      // Simulate bot response after some delay
-      setTimeout(() => {
-        const botMessage = {
-          sender: "bot",
-          text: "🚀 Lift AI – Coming Soon!\n\nWe’re working hard to bring Lift AI to life — your personal business companion right inside the app. With Lift AI, you’ll be able to:\n\n- Generate Business Documents: Get important documents tailored to your business needs in minutes.\n- Access Ready-to-Use Templates: Use practical business templates you can quickly fill out and adapt.\n- Consult on Demand: Receive personalized business guidance for your unique challenges.\n\nStay tuned — this feature is almost here, and it’s built to help you work smarter, not harder!",
-          timestamp: Date.now(),
-        };
+      // Directly add bot message after user sends their message
+      const botMessage = {
+        sender: "bot",
+        text: `
+        <p>🚀 Lift AI – Coming Soon!</p>
+        <p>We’re working hard to bring Lift AI to life — your personal business companion right inside the app. With Lift AI, you’ll be able to:</p>
+        <ul>
+          <li>Generate Business Documents: Get important documents tailored to your business needs in minutes.</li>
+          <li>Access Ready-to-Use Templates: Use practical business templates you can quickly fill out and adapt.</li>
+          <li>Consult on Demand: Receive personalized business guidance for your unique challenges.</li>
+        </ul>
+        <p>Stay tuned — this feature is almost here, and it’s built to help you work smarter, not harder!</p>
+      `,
+        timestamp: Date.now(),
+      };
 
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = botMessage; // Replace "Thinking..." with actual message
-          return copy;
-        });
-      }, 2000); // Simulate thinking delay
+      // Add bot message instantly after the user message
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+
     } catch (e) {
-      // On error, replace placeholder with error message
+      // On error, replace with error message
       setMessages((m) => {
         const copy = [...m];
         copy[copy.length - 1] = {

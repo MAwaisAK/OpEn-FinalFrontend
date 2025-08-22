@@ -12,12 +12,6 @@ export const metadata = {
 export default function Admin() {
   return (
     <>
-    <Script
-        id="adsense"
-        strategy="afterInteractive"
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4469304838128644"
-        crossOrigin="anonymous"
-      />
     <AdminBody/>
     </>
   );

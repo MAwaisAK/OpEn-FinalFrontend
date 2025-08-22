@@ -325,11 +325,11 @@ export default function Home() {
                       <li>Global Network Building</li>
                       <li>Startup Growth Toolkit</li>
                       <li>80% Discount to Courses Entrepreneurship</li>
-                      <li>
+                      {/*<li>
                         AI Business Executive Assistance
                         <br />(Obtainable via Tokens)
                       </li>
-                      <li>Higher AI Credit Cost</li>
+                      <li>Higher AI Credit Cost</li>*/}
                       <li>Technical Support</li>
                     </ul>
                     <div className="btn-wrap">
@@ -360,9 +360,9 @@ export default function Home() {
                       <li>Full Access to Entrepreneurship Courses</li>
                       <li>
                         AI Business Executive Assistance
-                        <br />(Capped Usage)
+                        <br />(Coming Soon)
                       </li>
-                      <li>Low AI Credit Cost</li>
+                      {/*<li>Low AI Credit Cost</li>*/}
                       <li>Faster Technical Support</li>
                     </ul>
                     <div className="btn-wrap">

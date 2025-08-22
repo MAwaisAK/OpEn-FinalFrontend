@@ -15,7 +15,7 @@ const Sidebar = () => {
   const allMenuItems = [
     { path: "/profile", icon: "icon-grid", title: "Dashboard" },
     { path: "/profile/mytribes", icon: "mdi mdi-account-multiple", title: "Tribes" },
-    { path: "/profile/lift-ai", icon: "fa-solid fa-brain", title: "Lift AI" },
+    { path: "/profile/lift-ai", icon: "fa-solid fa-brain", title: "Lift AI (Coming Soon)" },
     { path: "/profile/tools", icon: "mdi mdi-wrench", title: "Growth Toolkit" },
     { path: "/profile/courses", icon: "fa fa-graduation-cap", title: "Courses" },
     { path: "/profile/chat", icon: "ti-comment", title: "Chat" },

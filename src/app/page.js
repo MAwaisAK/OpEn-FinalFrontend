@@ -325,12 +325,12 @@ export default function Home() {
                       <li>Global Network Building</li>
                       <li>Startup Growth Toolkit</li>
                       <li>80% Discount to Courses Entrepreneurship</li>
-                      {/*<li>
+                      {/*<li>Higher AI Credit Cost</li>*/}
+                      <li>Technical Support</li>
+                      <li style={{visibility:'hidden'}}>
                         AI Business Executive Assistance
                         <br />(Obtainable via Tokens)
                       </li>
-                      <li>Higher AI Credit Cost</li>*/}
-                      <li>Technical Support</li>
                     </ul>
                     <div className="btn-wrap">
                       <a href={loggedIn ? "/profile" : "/login"} className="btn-buy">
